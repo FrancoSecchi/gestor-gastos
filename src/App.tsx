@@ -143,6 +143,8 @@ function AppInner() {
     setShowForm(true);
   }, []);
 
+  const handleOpenForm = useCallback(() => setShowForm(true), []);
+
   const handleCloseForm = useCallback(() => {
     setShowForm(false);
     setEditingTx(null);
@@ -285,7 +287,7 @@ function AppInner() {
                   filters={filters}
                   loading={loading}
                   categoryIcons={categoryIcons}
-                  onAdd={() => setShowForm(true)}
+                  onAdd={handleOpenForm}
                   onEdit={handleEdit}
                   onDelete={handleDelete}
                   onClearAll={handleClearAllData}

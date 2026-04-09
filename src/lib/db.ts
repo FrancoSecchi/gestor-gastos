@@ -64,6 +64,10 @@ async function initializeDb(database: Database): Promise<void> {
     // Column already exists
   }
 
+  // Indexes
+  await database.execute(`CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date)`);
+  await database.execute(`CREATE INDEX IF NOT EXISTS idx_transactions_type ON transactions(type)`);
+
   // Check if initialized
   const result = await database.select<{ value: string }[]>(
     "SELECT value FROM settings WHERE key = 'initialized'"
@@ -196,24 +200,24 @@ export async function clearAllData(): Promise<void> {
 export async function getSummary(startDate: string, endDate: string): Promise<Summary> {
   const database = await getDb();
 
-  const incomeResult = await database.select<{ total: number }[]>(
-    `SELECT COALESCE(SUM(amount), 0) as total FROM transactions
-     WHERE type='income' AND (subtype IS NULL OR subtype != 'transfer_from_savings')
-     AND date >= $1 AND date <= $2`,
-    [startDate, endDate]
-  );
-
-  const expenseResult = await database.select<{ total: number }[]>(
-    `SELECT COALESCE(SUM(amount), 0) as total FROM transactions WHERE type='expense' AND date >= $1 AND date <= $2`,
-    [startDate, endDate]
-  );
-
-  const categoryResult = await database.select<CategorySummary[]>(
-    `SELECT category, COALESCE(SUM(amount), 0) as total, COUNT(*) as count
-     FROM transactions WHERE type='expense' AND date >= $1 AND date <= $2
-     GROUP BY category ORDER BY total DESC`,
-    [startDate, endDate]
-  );
+  const [incomeResult, expenseResult, categoryResult] = await Promise.all([
+    database.select<{ total: number }[]>(
+      `SELECT COALESCE(SUM(amount), 0) as total FROM transactions
+       WHERE type='income' AND (subtype IS NULL OR subtype != 'transfer_from_savings')
+       AND date >= $1 AND date <= $2`,
+      [startDate, endDate]
+    ),
+    database.select<{ total: number }[]>(
+      `SELECT COALESCE(SUM(amount), 0) as total FROM transactions WHERE type='expense' AND date >= $1 AND date <= $2`,
+      [startDate, endDate]
+    ),
+    database.select<CategorySummary[]>(
+      `SELECT category, COALESCE(SUM(amount), 0) as total, COUNT(*) as count
+       FROM transactions WHERE type='expense' AND date >= $1 AND date <= $2
+       GROUP BY category ORDER BY total DESC`,
+      [startDate, endDate]
+    ),
+  ]);
 
   const total_income = incomeResult[0]?.total ?? 0;
   const total_expenses = expenseResult[0]?.total ?? 0;

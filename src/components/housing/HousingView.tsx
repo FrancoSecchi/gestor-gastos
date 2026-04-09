@@ -826,6 +826,7 @@ export const HousingView: React.FC<HousingViewProps> = ({ contract, loading, onS
                 dot={false}
                 name="Real"
                 connectNulls={false}
+                isAnimationActive={false}
               />
               <Area
                 type="stepAfter"
@@ -837,6 +838,7 @@ export const HousingView: React.FC<HousingViewProps> = ({ contract, loading, onS
                 dot={false}
                 name="Proyectado"
                 connectNulls={false}
+                isAnimationActive={false}
               />
             </AreaChart>
           </ResponsiveContainer>

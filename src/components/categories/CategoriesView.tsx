@@ -22,10 +22,7 @@ interface CategoriesViewProps {
   onRenameIncome: (oldName: string, newName: string) => Promise<void>;
 }
 
-const CustomTooltip = ({ active, payload }: {
-  active?: boolean;
-  payload?: { value: number; payload: { category: string; count: number; fill: string } }[];
-}) => {
+const CustomTooltip = ({ active, payload }: any) => {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
   return (
@@ -129,8 +126,8 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
                     tickLine={false}
                     width={110}
                   />
-                  <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(59,130,246,0.06)' }} />
-                  <Bar dataKey="total" radius={[0, 4, 4, 0]}>
+                  <Tooltip content={CustomTooltip} cursor={{ fill: 'rgba(59,130,246,0.06)' }} />
+                  <Bar dataKey="total" radius={[0, 4, 4, 0]} isAnimationActive={false}>
                     {chartData.map((entry, i) => (
                       <Cell key={i} fill={entry.fill} />
                     ))}

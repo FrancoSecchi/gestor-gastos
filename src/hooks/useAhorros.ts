@@ -186,7 +186,7 @@ export function useAhorros(mapping?: Rule502030Mapping | null) {
       setLoading(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(savingsCategories)]);
+  }, [savingsCategories.join(',')]);
 
   useEffect(() => { fetch(); }, [fetch]);
 

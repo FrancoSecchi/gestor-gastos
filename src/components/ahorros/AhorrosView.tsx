@@ -111,6 +111,17 @@ export const AhorrosView: React.FC<AhorrosViewProps> = ({
   // Equivalent USD of total ARS savings using selected rate
   const equivalentUsd = arsToUsd(totalSavings);
 
+  // Compliance 50/30/20 stats (computed once, not inside JSX)
+  const withIncome = monthly.filter(m => m.income > 0);
+  const metTarget = withIncome.filter(m => m.net >= m.target);
+  const compliance = withIncome.length > 0 ? (metTarget.length / withIncome.length) * 100 : 0;
+  const totalDeficit = withIncome.reduce((acc, m) => acc + Math.max(0, m.target - m.net), 0);
+  const projectedAnnual = avgMonthlySavings * 12;
+  const avgTarget = withIncome.length > 0
+    ? withIncome.reduce((s, m) => s + m.target, 0) / withIncome.length
+    : 0;
+  const complianceColor = compliance >= 70 ? 'text-accent-green' : compliance >= 40 ? 'text-yellow-400' : 'text-accent-red';
+
   return (
     <div className="flex flex-col gap-5 animate-fade-in">
 
@@ -250,7 +261,7 @@ export const AhorrosView: React.FC<AhorrosViewProps> = ({
                 tickFormatter={v => fmtARS(v)}
                 width={50}
               />
-              <Tooltip content={<CustomTooltipAccum />} />
+              <Tooltip content={CustomTooltipAccum} />
               <Area
                 type="monotone"
                 dataKey="cumulative"
@@ -260,6 +271,7 @@ export const AhorrosView: React.FC<AhorrosViewProps> = ({
                 fill="url(#gradGreen)"
                 dot={false}
                 activeDot={{ r: 4, fill: '#10b981' }}
+                isAnimationActive={false}
               />
               {monthly.some(m => m.cumulativeUsd > 0) && (
                 <Area
@@ -273,17 +285,18 @@ export const AhorrosView: React.FC<AhorrosViewProps> = ({
                   dot={false}
                   activeDot={{ r: 3, fill: '#3b82f6' }}
                   yAxisId={0}
+                  isAnimationActive={false}
                 />
               )}
             </AreaChart>
           </ResponsiveContainer>
         </div>
 
-        {/* Chart 2: Deposited vs Withdrawn mensual */}
+        {/* Chart 2: Ahorro mensual vs meta 20% */}
         <div className="bg-bg-card border border-border-color rounded-2xl p-4">
           <div className="mb-3">
-            <p className="text-sm font-semibold text-text-primary">Movimientos mensuales</p>
-            <p className="text-xs text-text-secondary mt-0.5">Verde = depositado · Ámbar = retirado</p>
+            <p className="text-sm font-semibold text-text-primary">Ahorro mensual vs meta 20%</p>
+            <p className="text-xs text-text-secondary mt-0.5">Ahorro neto vs mínimo recomendado por mes</p>
           </div>
           <ResponsiveContainer width="100%" height={220}>
             <ComposedChart data={monthly} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
@@ -296,11 +309,75 @@ export const AhorrosView: React.FC<AhorrosViewProps> = ({
                 tickFormatter={v => fmtARS(v)}
                 width={50}
               />
-              <Tooltip content={<CustomTooltipMonthly />} />
-              <Bar dataKey="deposited" name="Depositado" fill="#10b981" fillOpacity={0.85} radius={[4, 4, 0, 0]} maxBarSize={32} />
-              <Bar dataKey="withdrawn" name="Retirado" fill="#f59e0b" fillOpacity={0.85} radius={[4, 4, 0, 0]} maxBarSize={32} />
+              <Tooltip content={CustomTooltipMonthly} />
+              <Legend
+                wrapperStyle={{ fontSize: 10, color: '#6b7280', paddingTop: 8 }}
+                formatter={(value) => <span style={{ color: '#9ca3af', fontSize: 10 }}>{value}</span>}
+              />
+              <Bar
+                dataKey="net"
+                name="Ahorro neto"
+                fill="#10b981"
+                opacity={0.85}
+                radius={[3, 3, 0, 0]}
+                isAnimationActive={false}
+              />
+              <Line
+                type="monotone"
+                dataKey="target"
+                name="Meta 20%"
+                stroke="#f59e0b"
+                strokeWidth={2}
+                strokeDasharray="5 3"
+                dot={false}
+                activeDot={{ r: 3, fill: '#f59e0b' }}
+                isAnimationActive={false}
+              />
             </ComposedChart>
           </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* 50/30/20 compliance stats */}
+      <div className="bg-bg-card border border-border-color rounded-2xl p-4">
+        <div className="mb-3">
+          <p className="text-sm font-semibold text-text-primary">Cumplimiento 50/30/20</p>
+          <p className="text-xs text-text-secondary mt-0.5">Qué tan seguido alcanzás el 20% de ahorro recomendado</p>
+        </div>
+        <div className="grid grid-cols-4 gap-3">
+          <div className="rounded-xl border border-border-color bg-bg-secondary px-4 py-3 flex flex-col gap-1">
+            <p className="text-[10px] uppercase tracking-wider text-text-secondary font-semibold">Meses en meta</p>
+            <p className={`text-base font-bold tabular-nums ${complianceColor}`}>{metTarget.length} / {withIncome.length}</p>
+            <p className="text-[11px] text-text-secondary">{compliance.toFixed(0)}% de cumplimiento</p>
+          </div>
+          <div className="rounded-xl border border-border-color bg-bg-secondary px-4 py-3 flex flex-col gap-1">
+            <p className="text-[10px] uppercase tracking-wider text-text-secondary font-semibold">Meta promedio</p>
+            <p className="text-base font-bold tabular-nums text-yellow-400">{fmtARS(avgTarget)}</p>
+            <p className="text-[11px] text-text-secondary">20% del ingreso promedio</p>
+          </div>
+          <div className="rounded-xl border border-border-color bg-bg-secondary px-4 py-3 flex flex-col gap-1">
+            <p className="text-[10px] uppercase tracking-wider text-text-secondary font-semibold">Déficit acumulado</p>
+            <p className="text-base font-bold tabular-nums text-accent-red">{fmtARS(totalDeficit)}</p>
+            <p className="text-[11px] text-text-secondary">Suma de meses bajo meta</p>
+          </div>
+          <div className="rounded-xl border border-border-color bg-bg-secondary px-4 py-3 flex flex-col gap-1">
+            <p className="text-[10px] uppercase tracking-wider text-text-secondary font-semibold">Proyección anual</p>
+            <p className={`text-base font-bold tabular-nums ${projectedAnnual >= 0 ? 'text-accent-green' : 'text-accent-red'}`}>{fmtARS(projectedAnnual)}</p>
+            <p className="text-[11px] text-text-secondary">Al ritmo promedio actual</p>
+          </div>
+        </div>
+        {/* Progress bar */}
+        <div className="mt-3">
+          <div className="flex justify-between text-[10px] text-text-secondary mb-1">
+            <span>Cumplimiento histórico</span>
+            <span>{compliance.toFixed(0)}%</span>
+          </div>
+          <div className="h-1.5 rounded-full bg-bg-secondary overflow-hidden">
+            <div
+              className={`h-full rounded-full ${compliance >= 70 ? 'bg-accent-green' : compliance >= 40 ? 'bg-yellow-400' : 'bg-accent-red'}`}
+              style={{ width: `${Math.min(compliance, 100)}%` }}
+            />
+          </div>
         </div>
       </div>
 

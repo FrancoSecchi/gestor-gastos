@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend,
@@ -15,10 +15,7 @@ interface ExpenseChartProps {
 }
 
 // Custom tooltip for Pie
-const CustomTooltipPie = ({ active, payload }: {
-  active?: boolean;
-  payload?: { name: string; value: number; payload: { fill: string; percent?: number } }[]
-}) => {
+const CustomTooltipPie = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     const pct = payload[0].payload.percent
       ? (payload[0].payload.percent * 100).toFixed(1)
@@ -38,16 +35,12 @@ const CustomTooltipPie = ({ active, payload }: {
 };
 
 // Custom tooltip for Bar
-const CustomTooltipBar = ({ active, payload, label }: {
-  active?: boolean;
-  payload?: { name: string; value: number; color: string }[];
-  label?: string
-}) => {
+const CustomTooltipBar = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
       <div className="bg-bg-secondary border border-border-color rounded-xl p-3 text-sm shadow-xl shadow-black/40">
         <p className="font-semibold text-text-primary mb-2 capitalize">{label}</p>
-        {payload.map(p => (
+        {payload.map((p: any) => (
           <div key={p.name} className="flex items-center gap-2 mb-1">
             <div className="w-2 h-2 rounded-full" style={{ backgroundColor: p.color }} />
             <span className="text-text-secondary">{p.name}:</span>
@@ -63,11 +56,7 @@ const CustomTooltipBar = ({ active, payload, label }: {
 };
 
 // Custom tooltip for Area
-const CustomTooltipArea = ({ active, payload, label }: {
-  active?: boolean;
-  payload?: { name: string; value: number; color: string }[];
-  label?: string
-}) => {
+const CustomTooltipArea = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     const value = payload[0]?.value ?? 0;
     return (
@@ -135,10 +124,10 @@ export const ExpenseChart: React.FC<ExpenseChartProps> = ({ transactions, byCate
   }, [transactions]);
 
   // Area chart: savings evolution
-  const savingsData = monthlyData.map(m => ({
-    month: m.month,
-    ahorro: m.Ingresos - m.Gastos,
-  }));
+  const savingsData = useMemo(
+    () => monthlyData.map(m => ({ month: m.month, ahorro: m.Ingresos - m.Gastos })),
+    [monthlyData]
+  );
 
   const axisStyle = { fill: '#94a3b8', fontSize: 10 };
   const gridStyle = { stroke: '#2d3148', strokeDasharray: '3 3' };
@@ -169,6 +158,7 @@ export const ExpenseChart: React.FC<ExpenseChartProps> = ({ transactions, byCate
                   dataKey="value"
                   labelLine={false}
                   label={renderCustomLabel}
+                  isAnimationActive={false}
                 >
                   {pieData.map((entry, index) => (
                     <Cell
@@ -181,7 +171,7 @@ export const ExpenseChart: React.FC<ExpenseChartProps> = ({ transactions, byCate
                     />
                   ))}
                 </Pie>
-                <Tooltip content={<CustomTooltipPie />} />
+                <Tooltip content={CustomTooltipPie} />
               </PieChart>
             </ResponsiveContainer>
             <div className="flex-1 grid grid-cols-2 gap-x-6 gap-y-1.5">
@@ -232,12 +222,12 @@ export const ExpenseChart: React.FC<ExpenseChartProps> = ({ transactions, byCate
               <CartesianGrid {...gridStyle} />
               <XAxis dataKey="month" tick={axisStyle} />
               <YAxis tick={axisStyle} tickFormatter={v => `$${(v / 1000).toFixed(0)}k`} width={40} />
-              <Tooltip content={<CustomTooltipBar />} cursor={{ fill: 'rgba(59,130,246,0.05)' }} />
+              <Tooltip content={CustomTooltipBar} cursor={{ fill: 'rgba(59,130,246,0.05)' }} />
               <Legend
                 wrapperStyle={{ fontSize: '11px', color: '#94a3b8', paddingTop: '4px' }}
               />
-              <Bar dataKey="Ingresos" fill="url(#barGreen)" radius={[3, 3, 0, 0]} />
-              <Bar dataKey="Gastos" fill="url(#barRed)" radius={[3, 3, 0, 0]} />
+              <Bar dataKey="Ingresos" fill="url(#barGreen)" radius={[3, 3, 0, 0]} isAnimationActive={false} />
+              <Bar dataKey="Gastos" fill="url(#barRed)" radius={[3, 3, 0, 0]} isAnimationActive={false} />
             </BarChart>
           </ResponsiveContainer>
         ) : emptyState(48)}
@@ -262,7 +252,7 @@ export const ExpenseChart: React.FC<ExpenseChartProps> = ({ transactions, byCate
               <CartesianGrid {...gridStyle} />
               <XAxis dataKey="month" tick={axisStyle} />
               <YAxis tick={axisStyle} tickFormatter={v => `$${(v / 1000).toFixed(0)}k`} width={40} />
-              <Tooltip content={<CustomTooltipArea />} cursor={{ stroke: '#3b82f6', strokeWidth: 1, strokeDasharray: '4 4' }} />
+              <Tooltip content={CustomTooltipArea} cursor={{ stroke: '#3b82f6', strokeWidth: 1, strokeDasharray: '4 4' }} />
               <Area
                 type="monotone"
                 dataKey="ahorro"
@@ -271,6 +261,7 @@ export const ExpenseChart: React.FC<ExpenseChartProps> = ({ transactions, byCate
                 fill="url(#areaBlue)"
                 dot={{ fill: '#3b82f6', r: 3, strokeWidth: 0 }}
                 activeDot={{ r: 5, fill: '#3b82f6', stroke: '#1e2130', strokeWidth: 2 }}
+                isAnimationActive={false}
               />
             </AreaChart>
           </ResponsiveContainer>
