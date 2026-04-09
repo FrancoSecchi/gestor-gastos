@@ -34,7 +34,7 @@ pub fn run() {
             description: "add_subtype_column",
             sql: "
                 ALTER TABLE transactions ADD COLUMN subtype TEXT;
-                UPDATE transactions SET subtype = 'transfer_to_savings' WHERE category IN ('Ahorro', 'Inversión') AND type = 'expense';
+                UPDATE transactions SET subtype = 'transfer_to_savings' WHERE category IN ('Ahorro', 'Inversión', NULL) AND type = 'expense';
                 UPDATE transactions SET subtype = 'transfer_from_savings' WHERE category IN ('Retiro de ahorro') AND type = 'income';
             ",
             kind: MigrationKind::Up,

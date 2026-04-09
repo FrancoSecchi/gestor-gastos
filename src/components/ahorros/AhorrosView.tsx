@@ -313,6 +313,7 @@ export const AhorrosView: React.FC<AhorrosViewProps> = ({
           </div>
           <div className="space-y-2 max-h-64 overflow-y-auto">
             {data.movements.map((tx) => (
+              
               <div
                 key={tx.id}
                 className="flex items-center justify-between p-3 rounded-xl bg-bg-secondary border border-border-color/50 hover:border-border-color transition-all duration-150"
