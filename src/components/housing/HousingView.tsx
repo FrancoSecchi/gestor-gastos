@@ -598,7 +598,7 @@ export const HousingView: React.FC<HousingViewProps> = ({ contract, loading, onS
   // ── Estado vacío: setup ───────────────────────────────────────────────
   if (!contract || editing) {
     return (
-      <div className="max-w-2xl">
+      <div className="">
         <div className="mb-5">
           <h2 className="text-lg font-semibold text-text-primary">Vivienda</h2>
           <p className="text-sm text-text-secondary mt-1">
@@ -627,7 +627,7 @@ export const HousingView: React.FC<HousingViewProps> = ({ contract, loading, onS
   const todayForChart = today;
 
   return (
-    <div className="flex flex-col gap-5 max-w-4xl">
+    <div className="flex flex-col gap-5">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold text-text-primary">Vivienda</h2>
