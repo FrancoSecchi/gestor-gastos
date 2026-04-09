@@ -9,6 +9,8 @@ import { TrendingUp, DollarSign, Percent, Flame, ChevronDown } from 'lucide-reac
 import { useAhorros, Rule502030Mapping } from '../../hooks/useAhorros';
 import { DollarRate } from '../../types';
 import { formatARS } from '../../lib/export';
+import { format, parseISO } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 interface AhorrosViewProps {
   dollarRates: DollarRate[];
@@ -103,7 +105,7 @@ export const AhorrosView: React.FC<AhorrosViewProps> = ({
   const currentIdx = monthly.findIndex(m => m.month === currentMonthData.month);
   const prevMonth = currentIdx > 0 ? monthly[currentIdx - 1] : null;
   const thisMonthVsTarget = currentMonth.income > 0
-    ? ((currentMonth.savings / (currentMonth.income * 0.2)) * 100)
+    ? ((currentMonth.net / (currentMonth.income * 0.2)) * 100)
     : null;
 
   // Equivalent USD of total ARS savings using selected rate
@@ -162,24 +164,24 @@ export const AhorrosView: React.FC<AhorrosViewProps> = ({
       <div className="grid grid-cols-4 gap-3">
         <StatCard
           icon={<span className="text-lg">🐷</span>}
-          label="Total ahorrado"
+          label="Saldo neto"
           value={showUsd && currentRate ? fmtUSD(equivalentUsd) : `$${formatARS(totalSavings)}`}
           sub={showUsd && currentRate ? `ARS: $${formatARS(totalSavings)}` : (totalUsd > 0 ? `+ ${fmtUSD(totalUsd)} guardados` : undefined)}
           color="green"
         />
         <StatCard
-          icon={<DollarSign size={16} className="text-accent-blue" />}
-          label="USD guardado"
-          value={fmtUSD(totalUsd)}
-          sub={totalUsd > 0 && currentRate ? `≈ $${formatARS(totalUsd * currentRate.venta)} ARS` : 'Sin conversiones registradas'}
-          color="blue"
+          icon={<TrendingUp size={16} className="text-accent-green" />}
+          label="Total depositado"
+          value={`$${formatARS(data.totalDeposited)}`}
+          sub={`${(data.totalDeposited / (data.totalDeposited + data.totalWithdrawn) * 100).toFixed(0)}% del total`}
+          color="green"
         />
         <StatCard
-          icon={<TrendingUp size={16} className="text-accent-green" />}
-          label="Promedio mensual"
-          value={`$${formatARS(avgMonthlySavings)}`}
-          sub={prevMonth ? `Mes anterior: $${formatARS(prevMonth.savings)}` : undefined}
-          color="green"
+          icon={<span className="text-lg">🏧</span>}
+          label="Total retirado"
+          value={`$${formatARS(data.totalWithdrawn)}`}
+          sub={`${(data.totalWithdrawn / (data.totalDeposited + data.totalWithdrawn) * 100).toFixed(0)}% del total`}
+          color="yellow"
         />
         <StatCard
           icon={<Percent size={16} className="text-accent-blue" />}
@@ -194,10 +196,10 @@ export const AhorrosView: React.FC<AhorrosViewProps> = ({
       <div className="grid grid-cols-3 gap-3">
         <InsightCard
           label="Mes actual"
-          value={`$${formatARS(currentMonth.savings)}`}
+          value={`$${formatARS(currentMonth.net)}`}
           sub={(() => {
             if (thisMonthVsTarget === null) return 'Sin ingresos registrados';
-            const missing = currentMonth.target - currentMonth.savings;
+            const missing = currentMonth.target - currentMonth.net;
             if (missing <= 0) return '✅ Meta alcanzada este mes';
             if (showUsd && currentRate) {
               return `⚠️ Faltan ${fmtUSD(missing / currentRate.venta)} (${fmtARS(missing)})`;
@@ -208,7 +210,7 @@ export const AhorrosView: React.FC<AhorrosViewProps> = ({
         />
         <InsightCard
           label="Mejor mes"
-          value={bestMonth ? `$${formatARS(bestMonth.savings)}` : '—'}
+          value={bestMonth ? `$${formatARS(bestMonth.net)}` : '—'}
           sub={bestMonth?.label}
         />
         <InsightCard
@@ -277,11 +279,11 @@ export const AhorrosView: React.FC<AhorrosViewProps> = ({
           </ResponsiveContainer>
         </div>
 
-        {/* Chart 2: Mensual vs objetivo */}
+        {/* Chart 2: Deposited vs Withdrawn mensual */}
         <div className="bg-bg-card border border-border-color rounded-2xl p-4">
           <div className="mb-3">
-            <p className="text-sm font-semibold text-text-primary">Ahorro mensual vs objetivo</p>
-            <p className="text-xs text-text-secondary mt-0.5">Barras = ahorro real · Línea = 20% del ingreso</p>
+            <p className="text-sm font-semibold text-text-primary">Movimientos mensuales</p>
+            <p className="text-xs text-text-secondary mt-0.5">Verde = depositado · Ámbar = retirado</p>
           </div>
           <ResponsiveContainer width="100%" height={220}>
             <ComposedChart data={monthly} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
@@ -295,21 +297,63 @@ export const AhorrosView: React.FC<AhorrosViewProps> = ({
                 width={50}
               />
               <Tooltip content={<CustomTooltipMonthly />} />
-              <Bar dataKey="savings" name="Ahorro real" fill="#10b981" fillOpacity={0.85} radius={[4, 4, 0, 0]} maxBarSize={32} />
-              <Line
-                type="monotone"
-                dataKey="target"
-                name="Objetivo 20%"
-                stroke="#f59e0b"
-                strokeWidth={1.5}
-                strokeDasharray="5 3"
-                dot={false}
-                activeDot={{ r: 3, fill: '#f59e0b' }}
-              />
+              <Bar dataKey="deposited" name="Depositado" fill="#10b981" fillOpacity={0.85} radius={[4, 4, 0, 0]} maxBarSize={32} />
+              <Bar dataKey="withdrawn" name="Retirado" fill="#f59e0b" fillOpacity={0.85} radius={[4, 4, 0, 0]} maxBarSize={32} />
             </ComposedChart>
           </ResponsiveContainer>
         </div>
       </div>
+
+      {/* Savings movements list */}
+      {data.movements && data.movements.length > 0 && (
+        <div className="bg-bg-card border border-border-color rounded-2xl p-4">
+          <div className="mb-4">
+            <p className="text-sm font-semibold text-text-primary">Historial de movimientos</p>
+            <p className="text-xs text-text-secondary mt-0.5">{data.movements.length} movimiento{data.movements.length !== 1 ? 's' : ''} registrado{data.movements.length !== 1 ? 's' : ''}</p>
+          </div>
+          <div className="space-y-2 max-h-64 overflow-y-auto">
+            {data.movements.map((tx) => (
+              <div
+                key={tx.id}
+                className="flex items-center justify-between p-3 rounded-xl bg-bg-secondary border border-border-color/50 hover:border-border-color transition-all duration-150"
+              >
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className={`
+                    w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 font-lg
+                    ${tx.subtype === 'transfer_to_savings'
+                      ? 'bg-accent-green/15 text-accent-green'
+                      : 'bg-yellow-500/15 text-yellow-600'
+                    }
+                  `}>
+                    {tx.subtype === 'transfer_to_savings' ? '→' : '←'}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-text-primary">
+                      {tx.subtype === 'transfer_to_savings' ? 'Depósito' : 'Retiro'}
+                      {tx.description ? ` · ${tx.description}` : ''}
+                    </p>
+                    <p className="text-[10px] text-text-secondary">
+                      {format(parseISO(tx.date), 'dd MMM yyyy', { locale: es })}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right flex-shrink-0 ml-2">
+                  <p className={`text-sm font-bold tabular-nums ${
+                    tx.subtype === 'transfer_to_savings' ? 'text-accent-green' : 'text-yellow-600'
+                  }`}>
+                    {tx.subtype === 'transfer_to_savings' ? '+' : '-'}${formatARS(tx.amount)}
+                  </p>
+                  {tx.amount_usd && (
+                    <p className="text-[10px] text-text-secondary tabular-nums">
+                      U$S ${tx.amount_usd.toFixed(2)}
+                    </p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
     </div>
   );

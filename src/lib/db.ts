@@ -58,6 +58,11 @@ async function initializeDb(database: Database): Promise<void> {
   } catch {
     // Column already exists
   }
+  try {
+    await database.execute(`ALTER TABLE transactions ADD COLUMN subtype TEXT`);
+  } catch {
+    // Column already exists
+  }
 
   // Check if initialized
   const result = await database.select<{ value: string }[]>(
@@ -145,9 +150,9 @@ export async function createTransaction(tx: NewTransaction): Promise<Transaction
   const created_at = new Date().toISOString();
 
   await database.execute(
-    `INSERT INTO transactions (id, type, amount, amount_usd, dollar_type, category, subcategory, description, date, created_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-    [id, tx.type, tx.amount, tx.amount_usd ?? null, tx.dollar_type ?? null, tx.category, tx.subcategory ?? null, tx.description ?? null, tx.date, created_at]
+    `INSERT INTO transactions (id, type, subtype, amount, amount_usd, dollar_type, category, subcategory, description, date, created_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+    [id, tx.type, tx.subtype ?? null, tx.amount, tx.amount_usd ?? null, tx.dollar_type ?? null, tx.category, tx.subcategory ?? null, tx.description ?? null, tx.date, created_at]
   );
 
   return { ...tx, id, created_at };
@@ -156,9 +161,9 @@ export async function createTransaction(tx: NewTransaction): Promise<Transaction
 export async function updateTransaction(tx: Transaction): Promise<Transaction> {
   const database = await getDb();
   await database.execute(
-    `UPDATE transactions SET type=$1, amount=$2, amount_usd=$3, dollar_type=$4, category=$5, subcategory=$6, description=$7, date=$8
-     WHERE id=$9`,
-    [tx.type, tx.amount, tx.amount_usd ?? null, tx.dollar_type ?? null, tx.category, tx.subcategory ?? null, tx.description ?? null, tx.date, tx.id]
+    `UPDATE transactions SET type=$1, subtype=$2, amount=$3, amount_usd=$4, dollar_type=$5, category=$6, subcategory=$7, description=$8, date=$9
+     WHERE id=$10`,
+    [tx.type, tx.subtype ?? null, tx.amount, tx.amount_usd ?? null, tx.dollar_type ?? null, tx.category, tx.subcategory ?? null, tx.description ?? null, tx.date, tx.id]
   );
   return tx;
 }
@@ -192,7 +197,9 @@ export async function getSummary(startDate: string, endDate: string): Promise<Su
   const database = await getDb();
 
   const incomeResult = await database.select<{ total: number }[]>(
-    `SELECT COALESCE(SUM(amount), 0) as total FROM transactions WHERE type='income' AND date >= $1 AND date <= $2`,
+    `SELECT COALESCE(SUM(amount), 0) as total FROM transactions
+     WHERE type='income' AND (subtype IS NULL OR subtype != 'transfer_from_savings')
+     AND date >= $1 AND date <= $2`,
     [startDate, endDate]
   );
 

@@ -57,6 +57,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
   const [amountInput, setAmountInput] = useState('');
   const [showPreview, setShowPreview] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [formMode, setFormMode] = useState<'expense' | 'income' | 'transfer'>('expense');
+  const [transferMode, setTransferMode] = useState<'deposit' | 'withdraw'>('deposit');
   const amountRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -68,6 +70,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
     if (transaction) {
       setForm({
         type: transaction.type,
+        subtype: transaction.subtype,
         amount: transaction.amount,
         amount_usd: transaction.amount_usd ?? null,
         dollar_type: transaction.dollar_type ?? null,
@@ -77,9 +80,24 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
         date: transaction.date,
       });
       setAmountInput(transaction.amount > 0 ? String(transaction.amount) : '');
+      
+      // Determinar formMode si es una transacción de ahorro
+      if (transaction.subtype === 'transfer_to_savings') {
+        setFormMode('transfer');
+        setTransferMode('deposit');
+      } else if (transaction.subtype === 'transfer_from_savings') {
+        setFormMode('transfer');
+        setTransferMode('withdraw');
+      } else if (transaction.type === 'expense') {
+        setFormMode('expense');
+      } else {
+        setFormMode('income');
+      }
     } else {
       setForm(defaultForm);
       setAmountInput('');
+      setFormMode('expense');
+      setTransferMode('deposit');
     }
   }, [transaction]);
 
@@ -88,7 +106,11 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
   }, []);
 
   const categories = useMemo(() => {
-    const base = form.type === 'expense' ? expenseCategories : incomeCategories;
+    let base = form.type === 'expense' ? expenseCategories : incomeCategories;
+    // Filtrar categorías de ahorro cuando es un gasto
+    if (form.type === 'expense') {
+      base = base.filter(cat => !SAVINGS_CATEGORIES.includes(cat));
+    }
     if (form.category && !base.includes(form.category)) {
       return [form.category, ...base];
     }
@@ -98,7 +120,50 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
   const handleTypeChange = (type: TransactionType) => {
     const list = type === 'expense' ? expenseCategories : incomeCategories;
     const defaultCat = list[0] ?? (type === 'expense' ? 'Comida' : 'Salario');
-    setForm(prev => ({ ...prev, type, category: defaultCat }));
+    setForm(prev => ({ ...prev, type, category: defaultCat, subtype: undefined }));
+    setFormMode(type === 'expense' ? 'expense' : 'income');
+  };
+
+  const handleFormModeChange = (mode: 'expense' | 'income' | 'transfer') => {
+    setFormMode(mode);
+    
+    if (mode === 'expense') {
+      const list = expenseCategories;
+      const defaultCat = list[0] ?? 'Comida';
+      setForm(prev => ({ ...prev, type: 'expense', category: defaultCat, subtype: undefined }));
+    } else if (mode === 'income') {
+      const list = incomeCategories;
+      const defaultCat = list[0] ?? 'Salario';
+      setForm(prev => ({ ...prev, type: 'income', category: defaultCat, subtype: undefined }));
+    } else if (mode === 'transfer') {
+      // El subtype se asignará según transferMode
+      const subtype = transferMode === 'deposit' ? 'transfer_to_savings' : 'transfer_from_savings';
+      if (transferMode === 'deposit') {
+        setForm(prev => ({ ...prev, type: 'expense', subtype, category: 'Ahorro' }));
+      } else {
+        setForm(prev => ({ ...prev, type: 'income', subtype, category: 'Retiro de ahorro' }));
+      }
+    }
+  };
+
+  const handleTransferModeChange = (mode: 'deposit' | 'withdraw') => {
+    setTransferMode(mode);
+    
+    if (mode === 'deposit') {
+      setForm(prev => ({
+        ...prev,
+        type: 'expense',
+        subtype: 'transfer_to_savings',
+        category: 'Ahorro',
+      }));
+    } else {
+      setForm(prev => ({
+        ...prev,
+        type: 'income',
+        subtype: 'transfer_from_savings',
+        category: 'Retiro de ahorro',
+      }));
+    }
   };
 
   const handleAddCustomCategory = async () => {
@@ -210,17 +275,19 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
         {/* Header */}
         <div className={`
           flex items-center justify-between px-5 py-4 border-b border-border-color rounded-t-2xl
-          ${form.type === 'income'
+          ${formMode === 'income'
             ? 'bg-gradient-to-r from-accent-green/5 to-transparent'
+            : formMode === 'transfer'
+            ? 'bg-gradient-to-r from-accent-blue/5 to-transparent'
             : 'bg-gradient-to-r from-accent-red/5 to-transparent'
           }
         `}>
           <div className="flex items-center gap-3">
             <div className={`
               w-8 h-8 rounded-xl flex items-center justify-center text-base
-              ${form.type === 'income' ? 'bg-accent-green/15' : 'bg-accent-red/15'}
+              ${formMode === 'income' ? 'bg-accent-green/15' : formMode === 'transfer' ? 'bg-accent-blue/15' : 'bg-accent-red/15'}
             `}>
-              {categoryIcons[form.category] ?? '💳'}
+              {formMode === 'transfer' ? '↕' : categoryIcons[form.category] ?? '💳'}
             </div>
             <h2 className="text-base font-semibold text-text-primary">
               {transaction ? 'Editar Transacción' : 'Nueva Transacción'}
@@ -249,20 +316,25 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
           <div className="px-5 pt-3 pb-0 animate-fade-in">
             <div className={`
               flex items-center gap-3 p-3 rounded-xl border
-              ${form.type === 'income'
+              ${formMode === 'income'
                 ? 'bg-accent-green/8 border-accent-green/20'
+                : formMode === 'transfer'
+                ? 'bg-accent-blue/8 border-accent-blue/20'
                 : 'bg-accent-red/8 border-accent-red/20'
               }
             `}>
               <div
                 className="w-9 h-9 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
-                style={{ backgroundColor: `${getCategoryColor(form.category)}25` }}
+                style={formMode === 'transfer' ? { backgroundColor: '#3b82f626' } : { backgroundColor: `${getCategoryColor(form.category)}25` }}
               >
-                {categoryIcons[form.category] ?? '💳'}
+                {formMode === 'transfer' ? '↕' : (categoryIcons[form.category] ?? '💳')}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-semibold text-text-primary truncate">
-                  {form.category}
+                  {formMode === 'transfer'
+                    ? (transferMode === 'deposit' ? '→ Depositar a ahorros' : '← Retirar de ahorros')
+                    : form.category
+                  }
                   {form.description ? ` · ${form.description}` : ''}
                 </p>
                 <p className="text-xs text-text-secondary mt-0.5">
@@ -270,9 +342,9 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
                 </p>
               </div>
               <span className={`text-base font-bold tabular-nums flex-shrink-0 ${
-                form.type === 'income' ? 'text-accent-green' : 'text-accent-red'
+                formMode === 'income' ? 'text-accent-green' : formMode === 'transfer' ? 'text-accent-blue' : 'text-accent-red'
               }`}>
-                {form.type === 'income' ? '+' : '-'}${formatAmountDisplay(form.amount)}
+                {formMode === 'income' ? '+' : formMode === 'transfer' ? (transferMode === 'deposit' ? '→' : '←') : '-'}${formatAmountDisplay(form.amount)}
               </span>
             </div>
           </div>
@@ -282,27 +354,61 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
           {/* Type */}
           <div>
             <label className="block text-xs font-medium text-text-secondary mb-1.5 uppercase tracking-wider">Tipo</label>
-            <div className="grid grid-cols-2 gap-2">
-              {(['expense', 'income'] as TransactionType[]).map(type => (
+            <div className="grid grid-cols-3 gap-2">
+              {(['expense', 'income', 'transfer'] as const).map(mode => (
                 <button
-                  key={type}
+                  key={mode}
                   type="button"
-                  onClick={() => handleTypeChange(type)}
+                  onClick={() => handleFormModeChange(mode)}
                   className={`
                     py-2.5 rounded-xl text-sm font-semibold transition-all duration-200
                     hover:scale-[1.02] active:scale-[0.98]
-                    ${form.type === type
-                      ? type === 'expense'
+                    ${formMode === mode
+                      ? mode === 'expense'
                         ? 'bg-accent-red/20 text-accent-red border border-accent-red/40 shadow-sm shadow-accent-red/10'
-                        : 'bg-accent-green/20 text-accent-green border border-accent-green/40 shadow-sm shadow-accent-green/10'
+                        : mode === 'income'
+                        ? 'bg-accent-green/20 text-accent-green border border-accent-green/40 shadow-sm shadow-accent-green/10'
+                        : 'bg-accent-blue/20 text-accent-blue border border-accent-blue/40 shadow-sm shadow-accent-blue/10'
                       : 'bg-bg-secondary text-text-secondary border border-border-color hover:border-text-secondary/50'
                     }
                   `}
                 >
-                  {type === 'expense' ? '↓ Gasto' : '↑ Ingreso'}
+                  {mode === 'expense' ? '↓ Gasto' : mode === 'income' ? '↑ Ingreso' : '↕ Ahorro'}
                 </button>
               ))}
             </div>
+
+            {/* Sub-toggle for transfer mode */}
+            {formMode === 'transfer' && (
+              <div className="mt-3 grid grid-cols-2 gap-2 p-3 bg-accent-blue/8 border border-accent-blue/20 rounded-xl animate-fade-in">
+                <button
+                  type="button"
+                  onClick={() => handleTransferModeChange('deposit')}
+                  className={`
+                    py-2 rounded-lg text-xs font-semibold transition-all duration-200
+                    ${transferMode === 'deposit'
+                      ? 'bg-accent-blue text-white shadow-sm shadow-accent-blue/20'
+                      : 'bg-bg-secondary text-text-secondary border border-border-color hover:border-accent-blue/30 hover:text-text-primary'
+                    }
+                  `}
+                >
+                  → Depositar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleTransferModeChange('withdraw')}
+                  className={`
+                    py-2 rounded-lg text-xs font-semibold transition-all duration-200
+                    ${transferMode === 'withdraw'
+                      ? 'bg-accent-blue text-white shadow-sm shadow-accent-blue/20'
+                      : 'bg-bg-secondary text-text-secondary border border-border-color hover:border-accent-blue/30 hover:text-text-primary'
+                    }
+                  `}
+                >
+                  ← Retirar
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Amount - prominent */}
@@ -354,66 +460,68 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
             );
           })()}
 
-          {/* Category — visual grid */}
-          <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1.5 uppercase tracking-wider">
-              Categoría *
-            </label>
-            <div className="grid grid-cols-4 gap-1.5 max-h-52 overflow-y-auto pr-0.5">
-              {categories.map(cat => {
-                const isSelected = form.category === cat;
-                const color = getCategoryColor(cat);
-                return (
-                  <button
-                    key={cat}
-                    type="button"
-                    onClick={() => setForm(prev => ({ ...prev, category: cat }))}
-                    className={`
-                      flex flex-col items-center gap-1 p-2 rounded-xl text-xs font-medium
-                      transition-all duration-150 hover:scale-105 active:scale-95 border
-                      ${isSelected
-                        ? 'border-opacity-60 shadow-sm'
-                        : 'border-border-color bg-bg-secondary text-text-secondary hover:border-border-color/80 hover:text-text-primary'
-                      }
-                    `}
-                    style={isSelected ? {
-                      backgroundColor: `${color}18`,
-                      borderColor: `${color}50`,
-                      color,
-                    } : {}}
-                  >
-                    <span className="text-base leading-none">{categoryIcons[cat] ?? '💳'}</span>
-                    <span className="text-center leading-tight" style={{ fontSize: '10px' }}>
-                      {cat.length > 8 ? cat.slice(0, 7) + '…' : cat}
-                    </span>
-                  </button>
-                );
-              })}
+          {/* Category — visual grid (hidden in transfer mode) */}
+          {formMode !== 'transfer' && (
+            <div>
+              <label className="block text-xs font-medium text-text-secondary mb-1.5 uppercase tracking-wider">
+                Categoría *
+              </label>
+              <div className="grid grid-cols-4 gap-1.5 max-h-52 overflow-y-auto pr-0.5">
+                {categories.map(cat => {
+                  const isSelected = form.category === cat;
+                  const color = getCategoryColor(cat);
+                  return (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => setForm(prev => ({ ...prev, category: cat }))}
+                      className={`
+                        flex flex-col items-center gap-1 p-2 rounded-xl text-xs font-medium
+                        transition-all duration-150 hover:scale-105 active:scale-95 border
+                        ${isSelected
+                          ? 'border-opacity-60 shadow-sm'
+                          : 'border-border-color bg-bg-secondary text-text-secondary hover:border-border-color/80 hover:text-text-primary'
+                        }
+                      `}
+                      style={isSelected ? {
+                        backgroundColor: `${color}18`,
+                        borderColor: `${color}50`,
+                        color,
+                      } : {}}
+                    >
+                      <span className="text-base leading-none">{categoryIcons[cat] ?? '💳'}</span>
+                      <span className="text-center leading-tight" style={{ fontSize: '10px' }}>
+                        {cat.length > 8 ? cat.slice(0, 7) + '…' : cat}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="mt-2 flex gap-2">
+                <input
+                  type="text"
+                  value={newCategoryName}
+                  onChange={e => setNewCategoryName(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAddCustomCategory();
+                    }
+                  }}
+                  placeholder="Nueva categoría…"
+                  className={`${inputClass} flex-1 text-xs py-2`}
+                />
+                <button
+                  type="button"
+                  onClick={handleAddCustomCategory}
+                  disabled={addingCategory}
+                  className="px-3 py-2 rounded-xl text-xs font-medium border border-border-color text-text-secondary hover:text-accent-blue hover:border-accent-blue/40 transition-all shrink-0 disabled:opacity-50"
+                >
+                  {addingCategory ? '…' : 'Agregar'}
+                </button>
+              </div>
             </div>
-            <div className="mt-2 flex gap-2">
-              <input
-                type="text"
-                value={newCategoryName}
-                onChange={e => setNewCategoryName(e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleAddCustomCategory();
-                  }
-                }}
-                placeholder="Nueva categoría…"
-                className={`${inputClass} flex-1 text-xs py-2`}
-              />
-              <button
-                type="button"
-                onClick={handleAddCustomCategory}
-                disabled={addingCategory}
-                className="px-3 py-2 rounded-xl text-xs font-medium border border-border-color text-text-secondary hover:text-accent-blue hover:border-accent-blue/40 transition-all shrink-0 disabled:opacity-50"
-              >
-                {addingCategory ? '…' : 'Agregar'}
-              </button>
-            </div>
-          </div>
+          )}
 
           {/* Description + Date */}
           <div className="grid grid-cols-2 gap-3">
@@ -450,25 +558,18 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
                 Dólar utilizado <span className="normal-case font-normal text-text-secondary">(opcional)</span>
               </label>
               {dollarRates.length > 0 ? (
-                <div className="grid grid-cols-3 gap-1.5">
+                <select
+                  value={form.dollar_type ?? ''}
+                  onChange={e => handleDollarTypeChange(e.target.value || null)}
+                  className={`${inputClass} text-sm`}
+                >
+                  <option value="">Seleccionar dólar...</option>
                   {dollarRates.map(rate => (
-                    <button
-                      key={rate.casa}
-                      type="button"
-                      onClick={() => handleDollarTypeChange(form.dollar_type === rate.casa ? null : rate.casa)}
-                      className={`
-                        flex flex-col items-center gap-0.5 px-2 py-2 rounded-lg text-xs border transition-all duration-150
-                        ${form.dollar_type === rate.casa
-                          ? 'bg-accent-green/15 border-accent-green/40 text-accent-green'
-                          : 'bg-bg-secondary border-border-color text-text-secondary hover:border-accent-green/30 hover:text-text-primary'
-                        }
-                      `}
-                    >
-                      <span className="font-semibold capitalize">{rate.nombre.replace('Dólar ', '').replace('dólar ', '')}</span>
-                      <span className="text-[10px] opacity-70">${formatARS(rate.venta)}</span>
-                    </button>
+                    <option key={rate.casa} value={rate.casa}>
+                      {rate.nombre.replace('Dólar ', '').replace('dólar ', '')} - ${formatARS(rate.venta)}
+                    </option>
                   ))}
-                </div>
+                </select>
               ) : (
                 <p className="text-xs text-text-secondary">Cargando cotizaciones…</p>
               )}
@@ -518,8 +619,10 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
                 flex items-center justify-center gap-2 transition-all duration-200
                 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:scale-100
                 shadow-lg
-                ${form.type === 'income'
+                ${formMode === 'income'
                   ? 'bg-accent-green hover:bg-green-500 shadow-accent-green/20'
+                  : formMode === 'transfer'
+                  ? 'bg-accent-blue hover:bg-blue-500 shadow-accent-blue/20'
                   : 'bg-accent-blue hover:bg-blue-500 shadow-accent-blue/20'
                 }
               `}

@@ -64,7 +64,10 @@ export const TransactionList: React.FC<TransactionListProps> = ({
 
   const grouped = useMemo(() => groupTransactions(filtered), [filtered]);
 
-  const totalIncome = filtered.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+  // Total income excluye transfer_from_savings
+  const totalIncome = filtered
+    .filter(t => t.type === 'income' && t.subtype !== 'transfer_from_savings')
+    .reduce((s, t) => s + t.amount, 0);
   const totalExpense = filtered.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
 
   return (
@@ -205,15 +208,25 @@ export const TransactionList: React.FC<TransactionListProps> = ({
                       </td>
 
                       <td className="px-4 py-2.5">
-                        <span className={`
-                          text-xs px-2 py-0.5 rounded-full font-semibold
-                          ${tx.type === 'income'
-                            ? 'bg-accent-green/15 text-accent-green border border-accent-green/20'
-                            : 'bg-accent-red/15 text-accent-red border border-accent-red/20'
-                          }
-                        `}>
-                          {tx.type === 'income' ? '↑ Ingreso' : '↓ Gasto'}
-                        </span>
+                        {tx.subtype === 'transfer_to_savings' ? (
+                          <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-accent-green/15 text-accent-green border border-accent-green/20">
+                            → Ahorros
+                          </span>
+                        ) : tx.subtype === 'transfer_from_savings' ? (
+                          <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-yellow-500/15 text-yellow-600 border border-yellow-500/20">
+                            ← Ahorros
+                          </span>
+                        ) : (
+                          <span className={`
+                            text-xs px-2 py-0.5 rounded-full font-semibold
+                            ${tx.type === 'income'
+                              ? 'bg-accent-green/15 text-accent-green border border-accent-green/20'
+                              : 'bg-accent-red/15 text-accent-red border border-accent-red/20'
+                            }
+                          `}>
+                            {tx.type === 'income' ? '↑ Ingreso' : '↓ Gasto'}
+                          </span>
+                        )}
                       </td>
 
                       <td className="px-4 py-2.5">

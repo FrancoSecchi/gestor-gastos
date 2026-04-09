@@ -5,26 +5,31 @@ import { Transaction, Rule502030Group } from '../types';
 export type Rule502030Mapping = Record<Rule502030Group, string[]>;
 
 export interface MonthlySavings {
-  month: string;   // 'YYYY-MM'
-  label: string;   // 'Ene 25'
-  savings: number;
-  income: number;
-  target: number;  // 20% del ingreso
-  cumulative: number;
+  month: string;        // 'YYYY-MM'
+  label: string;        // 'Ene 25'
+  deposited: number;    // bruto depositado en ahorros
+  withdrawn: number;    // retirado de ahorros
+  net: number;          // deposited - withdrawn
+  income: number;       // ingresos reales del mes (excl. retiros)
+  target: number;       // 20% del ingreso
+  cumulative: number;   // saldo acumulado neto
   cumulativeUsd: number;
-  usd: number;
+  usd: number;          // USD depositado (amount_usd sum)
 }
 
 export interface AhorrosData {
   monthly: MonthlySavings[];
   currentMonthData: MonthlySavings;
-  totalSavings: number;
+  totalSavings: number;     // saldo neto (deposited - withdrawn, histórico)
+  totalDeposited: number;
+  totalWithdrawn: number;
   totalUsd: number;
   avgMonthlySavings: number;
   avgSavingsRate: number;
   bestMonth: MonthlySavings | null;
   streakMonths: number;
   savingsCategories: string[];
+  movements: Transaction[];  // todas las transacciones de ahorro/retiro
 }
 
 const MONTH_NAMES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
@@ -39,7 +44,6 @@ function formatMonthLabel(month: string): string {
   return `${MONTH_NAMES[parseInt(m) - 1]} ${year.slice(2)}`;
 }
 
-/** Genera todos los meses entre start y end (inclusive), formato 'YYYY-MM'. */
 function fillMonthRange(start: string, end: string): string[] {
   const result: string[] = [];
   let [y, m] = start.split('-').map(Number);
@@ -56,29 +60,35 @@ function computeAhorros(
   transactions: Transaction[],
   savingsCategories: string[]
 ): AhorrosData {
-  const byMonth: Record<string, { savings: number; income: number; usd: number }> = {};
+  type MonthBucket = { deposited: number; withdrawn: number; income: number; usd: number };
+  const byMonth: Record<string, MonthBucket> = {};
+
+  const movements: Transaction[] = [];
 
   for (const tx of transactions) {
     const month = tx.date.slice(0, 7);
-    if (!byMonth[month]) byMonth[month] = { savings: 0, income: 0, usd: 0 };
+    if (!byMonth[month]) byMonth[month] = { deposited: 0, withdrawn: 0, income: 0, usd: 0 };
 
-    if (tx.type === 'income') {
+    if (tx.subtype === 'transfer_from_savings') {
+      byMonth[month].withdrawn += tx.amount;
+      movements.push(tx);
+    } else if (tx.type === 'income') {
       byMonth[month].income += tx.amount;
-    } else if (savingsCategories.includes(tx.category)) {
-      byMonth[month].savings += tx.amount;
+    } else if (tx.subtype === 'transfer_to_savings' || savingsCategories.includes(tx.category)) {
+      byMonth[month].deposited += tx.amount;
       byMonth[month].usd += tx.amount_usd ?? 0;
+      movements.push(tx);
     }
   }
 
-  // Siempre incluir el mes actual
+  // Asegurar que el mes actual siempre está presente
   const nowStr = currentMonthStr();
-  if (!byMonth[nowStr]) byMonth[nowStr] = { savings: 0, income: 0, usd: 0 };
+  if (!byMonth[nowStr]) byMonth[nowStr] = { deposited: 0, withdrawn: 0, income: 0, usd: 0 };
 
-  // Rellenar huecos entre el primer mes con datos y el mes actual
+  // Rellenar huecos para que el streak pueda detectarlos
   const knownMonths = Object.keys(byMonth).sort();
-  const allMonths = fillMonthRange(knownMonths[0], nowStr);
-  for (const m of allMonths) {
-    if (!byMonth[m]) byMonth[m] = { savings: 0, income: 0, usd: 0 };
+  for (const m of fillMonthRange(knownMonths[0], nowStr)) {
+    if (!byMonth[m]) byMonth[m] = { deposited: 0, withdrawn: 0, income: 0, usd: 0 };
   }
 
   const months = Object.keys(byMonth).sort();
@@ -87,12 +97,15 @@ function computeAhorros(
 
   const monthly: MonthlySavings[] = months.map(month => {
     const d = byMonth[month];
-    cumulative += d.savings;
+    const net = d.deposited - d.withdrawn;
+    cumulative += net;
     cumulativeUsd += d.usd;
     return {
       month,
       label: formatMonthLabel(month),
-      savings: d.savings,
+      deposited: d.deposited,
+      withdrawn: d.withdrawn,
+      net,
       income: d.income,
       target: d.income > 0 ? d.income * 0.2 : 0,
       cumulative,
@@ -101,45 +114,54 @@ function computeAhorros(
     };
   });
 
-  // Mes actual: buscamos por el string real, no por posición
   const currentMonthEntry = monthly.find(m => m.month === nowStr) ?? monthly[monthly.length - 1];
 
-  const savingMonths = monthly.filter(m => m.savings > 0);
+  const totalDeposited = monthly.reduce((s, m) => s + m.deposited, 0);
+  const totalWithdrawn = monthly.reduce((s, m) => s + m.withdrawn, 0);
+  const totalSavings = totalDeposited - totalWithdrawn;
+  const totalUsd = cumulativeUsd;
+
   const avgMonthlySavings = monthly.length > 0
-    ? monthly.reduce((acc, m) => acc + m.savings, 0) / monthly.length
+    ? monthly.reduce((s, m) => s + m.net, 0) / monthly.length
     : 0;
 
   const rateMonths = monthly.filter(m => m.income > 0);
   const avgSavingsRate = rateMonths.length > 0
-    ? (rateMonths.reduce((acc, m) => acc + m.savings / m.income, 0) / rateMonths.length) * 100
+    ? (rateMonths.reduce((acc, m) => acc + m.net / m.income, 0) / rateMonths.length) * 100
     : 0;
 
+  const savingMonths = monthly.filter(m => m.net > 0);
   const bestMonth = savingMonths.length > 0
-    ? savingMonths.reduce((best, m) => m.savings > best.savings ? m : best, savingMonths[0])
+    ? savingMonths.reduce((best, m) => m.net > best.net ? m : best, savingMonths[0])
     : null;
 
-  // Racha: contamos hacia atrás desde el mes anterior al actual (o el actual si ya tiene ahorro).
-  // Si el mes actual no tiene ahorro todavía, no penalizamos; empezamos desde el mes anterior.
+  // Racha: contar hacia atrás, saltar mes actual si todavía no tiene movimientos
   let streakStartIdx = monthly.length - 1;
-  if (monthly[streakStartIdx].month === nowStr && monthly[streakStartIdx].savings === 0) {
+  if (monthly[streakStartIdx].month === nowStr && monthly[streakStartIdx].net === 0) {
     streakStartIdx--;
   }
   let streakMonths = 0;
   for (let i = streakStartIdx; i >= 0; i--) {
-    if (monthly[i].savings > 0) streakMonths++;
+    if (monthly[i].net > 0) streakMonths++;
     else break;
   }
+
+  // Movimientos ordenados por fecha DESC
+  movements.sort((a, b) => b.date.localeCompare(a.date) || b.created_at.localeCompare(a.created_at));
 
   return {
     monthly,
     currentMonthData: currentMonthEntry,
-    totalSavings: cumulative,
-    totalUsd: cumulativeUsd,
+    totalSavings,
+    totalDeposited,
+    totalWithdrawn,
+    totalUsd,
     avgMonthlySavings,
     avgSavingsRate,
     bestMonth,
     streakMonths,
     savingsCategories,
+    movements,
   };
 }
 

@@ -1,4 +1,5 @@
 export type TransactionType = 'expense' | 'income';
+export type TransactionSubtype = 'transfer_to_savings' | 'transfer_from_savings';
 
 export type ExpenseCategory =
   | 'Vivienda'
@@ -16,7 +17,8 @@ export type IncomeCategory =
   | 'Salario'
   | 'Freelance'
   | 'Inversiones'
-  | 'Otros ingresos';
+  | 'Otros ingresos'
+  | 'Retiro de ahorro';
 
 export type Category = ExpenseCategory | IncomeCategory;
 
@@ -25,6 +27,7 @@ export type Rule502030Group = 'Necesidades' | 'Deseos' | 'Ahorro/Inversión';
 export interface Transaction {
   id: string;
   type: TransactionType;
+  subtype?: TransactionSubtype | null;
   amount: number;
   amount_usd?: number | null;
   dollar_type?: string | null;
@@ -37,6 +40,7 @@ export interface Transaction {
 
 export interface NewTransaction {
   type: TransactionType;
+  subtype?: TransactionSubtype | null;
   amount: number;
   amount_usd?: number | null;
   dollar_type?: string | null;
@@ -116,7 +120,7 @@ export const ALL_EXPENSE_CATEGORIES: ExpenseCategory[] = [
 ];
 
 export const ALL_INCOME_CATEGORIES: IncomeCategory[] = [
-  'Salario', 'Freelance', 'Inversiones', 'Otros ingresos',
+  'Salario', 'Freelance', 'Inversiones', 'Otros ingresos', 'Retiro de ahorro',
 ];
 
 export const CATEGORY_COLORS: Record<string, string> = {
@@ -134,6 +138,7 @@ export const CATEGORY_COLORS: Record<string, string> = {
   'Freelance': '#3b82f6',
   'Inversiones': '#0ea5e9',
   'Otros ingresos': '#94a3b8',
+  'Retiro de ahorro': '#f59e0b',
 };
 
 /** Une categorías base con personalizadas, sin duplicar (comparación case-insensitive). */
