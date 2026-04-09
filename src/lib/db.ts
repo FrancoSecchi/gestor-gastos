@@ -52,6 +52,13 @@ async function initializeDb(database: Database): Promise<void> {
     )
   `);
 
+  // Migrations
+  try {
+    await database.execute(`ALTER TABLE transactions ADD COLUMN dollar_type TEXT`);
+  } catch {
+    // Column already exists
+  }
+
   // Check if initialized
   const result = await database.select<{ value: string }[]>(
     "SELECT value FROM settings WHERE key = 'initialized'"
@@ -138,9 +145,9 @@ export async function createTransaction(tx: NewTransaction): Promise<Transaction
   const created_at = new Date().toISOString();
 
   await database.execute(
-    `INSERT INTO transactions (id, type, amount, amount_usd, category, subcategory, description, date, created_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-    [id, tx.type, tx.amount, tx.amount_usd ?? null, tx.category, tx.subcategory ?? null, tx.description ?? null, tx.date, created_at]
+    `INSERT INTO transactions (id, type, amount, amount_usd, dollar_type, category, subcategory, description, date, created_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+    [id, tx.type, tx.amount, tx.amount_usd ?? null, tx.dollar_type ?? null, tx.category, tx.subcategory ?? null, tx.description ?? null, tx.date, created_at]
   );
 
   return { ...tx, id, created_at };
@@ -149,9 +156,9 @@ export async function createTransaction(tx: NewTransaction): Promise<Transaction
 export async function updateTransaction(tx: Transaction): Promise<Transaction> {
   const database = await getDb();
   await database.execute(
-    `UPDATE transactions SET type=$1, amount=$2, amount_usd=$3, category=$4, subcategory=$5, description=$6, date=$7
-     WHERE id=$8`,
-    [tx.type, tx.amount, tx.amount_usd ?? null, tx.category, tx.subcategory ?? null, tx.description ?? null, tx.date, tx.id]
+    `UPDATE transactions SET type=$1, amount=$2, amount_usd=$3, dollar_type=$4, category=$5, subcategory=$6, description=$7, date=$8
+     WHERE id=$9`,
+    [tx.type, tx.amount, tx.amount_usd ?? null, tx.dollar_type ?? null, tx.category, tx.subcategory ?? null, tx.description ?? null, tx.date, tx.id]
   );
   return tx;
 }

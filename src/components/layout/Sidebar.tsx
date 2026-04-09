@@ -9,9 +9,10 @@ import {
   Tag,
   PieChart,
   Home,
+  PiggyBank,
 } from 'lucide-react';
 
-export type ActiveView = 'dashboard' | 'transactions' | 'analysis' | 'categories' | 'rule502030' | 'vivienda' | 'settings' | 'database';
+export type ActiveView = 'dashboard' | 'transactions' | 'analysis' | 'categories' | 'rule502030' | 'vivienda' | 'ahorros' | 'settings' | 'database';
 
 interface SidebarProps {
   activeView: ActiveView;
@@ -41,8 +42,9 @@ const navGroups: NavGroup[] = [
   {
     label: 'Análisis',
     items: [
-      { id: 'analysis', label: 'Análisis IA', icon: Brain },
+      /* { id: 'analysis', label: 'Análisis IA', icon: Brain }, */
       { id: 'rule502030', label: 'Regla 50/30/20', icon: PieChart },
+      { id: 'ahorros', label: 'Ahorros', icon: PiggyBank },
     ],
   },
   {

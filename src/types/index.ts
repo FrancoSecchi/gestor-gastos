@@ -27,6 +27,7 @@ export interface Transaction {
   type: TransactionType;
   amount: number;
   amount_usd?: number | null;
+  dollar_type?: string | null;
   category: string;
   subcategory?: string | null;
   description?: string | null;
@@ -38,6 +39,7 @@ export interface NewTransaction {
   type: TransactionType;
   amount: number;
   amount_usd?: number | null;
+  dollar_type?: string | null;
   category: string;
   subcategory?: string | null;
   description?: string | null;

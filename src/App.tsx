@@ -14,6 +14,7 @@ import { DatabaseViewer } from './components/database/DatabaseViewer';
 import { CategoriesView } from './components/categories/CategoriesView';
 import { Rule502030View } from './components/rule502030/Rule502030View';
 import { HousingView } from './components/housing/HousingView';
+import { AhorrosView } from './components/ahorros/AhorrosView';
 import { ToastProvider, useToast } from './components/ui/Toast';
 import { useTransactions } from './hooks/useTransactions';
 import { useDollarRate } from './hooks/useDollarRate';
@@ -38,6 +39,7 @@ const VIEW_TITLES: Record<ActiveView, string> = {
   categories: 'Categorías',
   rule502030: 'Regla 50/30/20',
   vivienda: 'Vivienda',
+  ahorros: 'Ahorros',
   settings: 'Configuración',
   database: 'Base de datos',
 };
@@ -359,6 +361,16 @@ function AppInner() {
             </div>
           )}
 
+          {activeView === 'ahorros' && (
+            <div className="animate-fade-in">
+              <AhorrosView
+                dollarRates={rates}
+                dollarLoading={dollarLoading}
+                rule502030Mapping={rule502030Mapping}
+              />
+            </div>
+          )}
+
           {activeView === 'vivienda' && (
             <div className="animate-fade-in">
               <HousingErrorBoundary>
@@ -394,6 +406,7 @@ function AppInner() {
           incomeCategories={incomeCategories}
           categoryIcons={categoryIcons}
           housingContract={housingContract}
+          dollarRates={rates}
           onAddCustomCategory={handleAddCustomCategory}
           onSave={handleSaveTransaction}
           onClose={handleCloseForm}

@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { X, Save, Plus, Eye, Calendar } from 'lucide-react';
+import { X, Save, Plus, Eye, Calendar, ChevronDown } from 'lucide-react';
 import { DatePicker } from '../ui/DatePicker';
-import { Transaction, NewTransaction, TransactionType, getCategoryColor } from '../../types';
+import { Transaction, NewTransaction, TransactionType, DollarRate, getCategoryColor } from '../../types';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { formatARS } from '../../lib/export';
 import { HousingContract, getAmountForDate } from '../../lib/housingContract';
+
+const SAVINGS_CATEGORIES = ['Ahorro', 'Inversión'];
 
 interface TransactionFormProps {
   transaction?: Transaction | null;
@@ -13,6 +15,7 @@ interface TransactionFormProps {
   incomeCategories: string[];
   categoryIcons: Record<string, string>;
   housingContract?: HousingContract | null;
+  dollarRates?: DollarRate[];
   onAddCustomCategory: (type: TransactionType, name: string) => Promise<void>;
   onSave: (tx: NewTransaction | Transaction) => Promise<void>;
   onClose: () => void;
@@ -23,6 +26,7 @@ const defaultForm: NewTransaction = {
   type: 'expense',
   amount: 0,
   amount_usd: null,
+  dollar_type: null,
   category: 'Comida',
   subcategory: null,
   description: '',
@@ -40,6 +44,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
   incomeCategories,
   categoryIcons,
   housingContract,
+  dollarRates = [],
   onAddCustomCategory,
   onSave,
   onClose,
@@ -65,6 +70,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
         type: transaction.type,
         amount: transaction.amount,
         amount_usd: transaction.amount_usd ?? null,
+        dollar_type: transaction.dollar_type ?? null,
         category: transaction.category,
         subcategory: transaction.subcategory ?? null,
         description: transaction.description ?? '',
@@ -115,11 +121,35 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
   };
 
   const handleAmountChange = (raw: string) => {
-    // Allow only numbers and decimal point
     const cleaned = raw.replace(/[^0-9.]/g, '');
     setAmountInput(cleaned);
     const parsed = parseFloat(cleaned) || 0;
-    setForm(prev => ({ ...prev, amount: parsed }));
+    setForm(prev => {
+      const next = { ...prev, amount: parsed };
+      // Auto-recalculate USD if dollar type is selected
+      if (prev.dollar_type) {
+        const rate = dollarRates.find(r => r.casa === prev.dollar_type);
+        if (rate && rate.venta > 0) {
+          next.amount_usd = parseFloat((parsed / rate.venta).toFixed(2));
+        }
+      }
+      return next;
+    });
+  };
+
+  const handleDollarTypeChange = (casa: string | null) => {
+    setForm(prev => {
+      const next = { ...prev, dollar_type: casa };
+      if (casa) {
+        const rate = dollarRates.find(r => r.casa === casa);
+        if (rate && rate.venta > 0 && prev.amount > 0) {
+          next.amount_usd = parseFloat((prev.amount / rate.venta).toFixed(2));
+        }
+      } else {
+        next.amount_usd = null;
+      }
+      return next;
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -413,24 +443,57 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
             </div>
           </div>
 
-          {/* USD amount (optional, collapsible) */}
-          <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1.5 uppercase tracking-wider">
-              Monto en USD <span className="normal-case text-text-secondary font-normal">(opcional)</span>
-            </label>
-            <input
-              type="number"
-              value={form.amount_usd ?? ''}
-              onChange={e => setForm(prev => ({
-                ...prev,
-                amount_usd: e.target.value ? parseFloat(e.target.value) : null
-              }))}
-              placeholder="0.00"
-              min="0"
-              step="any"
-              className={inputClass}
-            />
-          </div>
+          {/* Dollar type + USD amount — only shown for savings categories */}
+          {form.type === 'expense' && SAVINGS_CATEGORIES.includes(form.category) && (
+            <div className="space-y-2 p-3 bg-accent-green/5 border border-accent-green/20 rounded-xl animate-fade-in">
+              <label className="block text-xs font-semibold text-accent-green uppercase tracking-wider">
+                Dólar utilizado <span className="normal-case font-normal text-text-secondary">(opcional)</span>
+              </label>
+              {dollarRates.length > 0 ? (
+                <div className="grid grid-cols-3 gap-1.5">
+                  {dollarRates.map(rate => (
+                    <button
+                      key={rate.casa}
+                      type="button"
+                      onClick={() => handleDollarTypeChange(form.dollar_type === rate.casa ? null : rate.casa)}
+                      className={`
+                        flex flex-col items-center gap-0.5 px-2 py-2 rounded-lg text-xs border transition-all duration-150
+                        ${form.dollar_type === rate.casa
+                          ? 'bg-accent-green/15 border-accent-green/40 text-accent-green'
+                          : 'bg-bg-secondary border-border-color text-text-secondary hover:border-accent-green/30 hover:text-text-primary'
+                        }
+                      `}
+                    >
+                      <span className="font-semibold capitalize">{rate.nombre.replace('Dólar ', '').replace('dólar ', '')}</span>
+                      <span className="text-[10px] opacity-70">${formatARS(rate.venta)}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-text-secondary">Cargando cotizaciones…</p>
+              )}
+              <div>
+                <label className="block text-[10px] text-text-secondary mb-1 uppercase tracking-wider">
+                  Monto USD {form.dollar_type ? '(calculado automáticamente)' : '(manual)'}
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary text-sm font-semibold">U$S</span>
+                  <input
+                    type="number"
+                    value={form.amount_usd ?? ''}
+                    onChange={e => setForm(prev => ({
+                      ...prev,
+                      amount_usd: e.target.value ? parseFloat(e.target.value) : null,
+                    }))}
+                    placeholder="0.00"
+                    min="0"
+                    step="any"
+                    className={`${inputClass} pl-10`}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
 
           {error && (
             <div className="text-xs text-accent-red bg-accent-red/10 border border-accent-red/25 rounded-xl px-3 py-2.5 animate-fade-in">
