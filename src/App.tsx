@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, Component, ErrorInfo, ReactNode } from 'react';
 import { Sidebar, ActiveView } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
 import { SummaryCards } from './components/dashboard/SummaryCards';
@@ -13,6 +13,7 @@ import { Settings } from './components/settings/Settings';
 import { DatabaseViewer } from './components/database/DatabaseViewer';
 import { CategoriesView } from './components/categories/CategoriesView';
 import { Rule502030View } from './components/rule502030/Rule502030View';
+import { HousingView } from './components/housing/HousingView';
 import { ToastProvider, useToast } from './components/ui/Toast';
 import { useTransactions } from './hooks/useTransactions';
 import { useDollarRate } from './hooks/useDollarRate';
@@ -28,6 +29,7 @@ import {
 import { useCustomCategories } from './hooks/useCustomCategories';
 import { useRule502030Mapping } from './hooks/useRule502030Mapping';
 import { useCategoryIcons } from './hooks/useCategoryIcons';
+import { useHousingContract } from './hooks/useHousingContract';
 
 const VIEW_TITLES: Record<ActiveView, string> = {
   dashboard: 'Dashboard',
@@ -35,9 +37,40 @@ const VIEW_TITLES: Record<ActiveView, string> = {
   analysis: 'Análisis con IA',
   categories: 'Categorías',
   rule502030: 'Regla 50/30/20',
+  vivienda: 'Vivienda',
   settings: 'Configuración',
   database: 'Base de datos',
 };
+
+class HousingErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error: string }> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: '' };
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error: error.message };
+  }
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error('[HousingView] Error:', error, info);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex flex-col items-center justify-center h-48 gap-3 text-center">
+          <p className="text-sm font-semibold text-accent-red">Error al cargar la sección Vivienda</p>
+          <p className="text-xs text-text-secondary max-w-sm">{this.state.error}</p>
+          <button
+            className="text-xs px-3 py-1.5 rounded-lg border border-border-color text-text-secondary hover:text-text-primary transition-colors"
+            onClick={() => this.setState({ hasError: false, error: '' })}
+          >
+            Reintentar
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 function AppInner() {
   const [activeView, setActiveView] = useState<ActiveView>('dashboard');
@@ -64,6 +97,7 @@ function AppInner() {
     refresh: refreshCustomCategories,
   } = useCustomCategories();
   const { icons: categoryIcons, setIcon: setCategoryIcon } = useCategoryIcons();
+  const { contract: housingContract, loading: housingLoading, save: saveHousingContract, remove: removeHousingContract } = useHousingContract();
 
   const {
     mapping: rule502030Mapping,
@@ -325,6 +359,19 @@ function AppInner() {
             </div>
           )}
 
+          {activeView === 'vivienda' && (
+            <div className="animate-fade-in">
+              <HousingErrorBoundary>
+                <HousingView
+                  contract={housingContract}
+                  loading={housingLoading}
+                  onSave={saveHousingContract}
+                  onDelete={removeHousingContract}
+                />
+              </HousingErrorBoundary>
+            </div>
+          )}
+
           {activeView === 'database' && (
             <div className="animate-fade-in">
               <DatabaseViewer />
@@ -346,6 +393,7 @@ function AppInner() {
           expenseCategories={expenseCategories}
           incomeCategories={incomeCategories}
           categoryIcons={categoryIcons}
+          housingContract={housingContract}
           onAddCustomCategory={handleAddCustomCategory}
           onSave={handleSaveTransaction}
           onClose={handleCloseForm}

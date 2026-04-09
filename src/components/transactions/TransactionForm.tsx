@@ -5,12 +5,14 @@ import { Transaction, NewTransaction, TransactionType, getCategoryColor } from '
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { formatARS } from '../../lib/export';
+import { HousingContract, getAmountForDate } from '../../lib/housingContract';
 
 interface TransactionFormProps {
   transaction?: Transaction | null;
   expenseCategories: string[];
   incomeCategories: string[];
   categoryIcons: Record<string, string>;
+  housingContract?: HousingContract | null;
   onAddCustomCategory: (type: TransactionType, name: string) => Promise<void>;
   onSave: (tx: NewTransaction | Transaction) => Promise<void>;
   onClose: () => void;
@@ -37,6 +39,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
   expenseCategories,
   incomeCategories,
   categoryIcons,
+  housingContract,
   onAddCustomCategory,
   onSave,
   onClose,
@@ -298,6 +301,28 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
               )}
             </div>
           </div>
+
+          {/* Sugerencia de monto para Vivienda */}
+          {form.type === 'expense' && form.category === 'Vivienda' && housingContract && (() => {
+            const suggested = getAmountForDate(housingContract, form.date || format(new Date(), 'yyyy-MM-dd'));
+            return (
+              <div className="flex items-center justify-between gap-3 px-3 py-2 bg-accent-blue/8 border border-accent-blue/20 rounded-xl animate-fade-in">
+                <span className="text-xs text-text-secondary">
+                  Alquiler este mes: <span className="font-semibold text-text-primary">${formatARS(suggested)}</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAmountInput(String(suggested));
+                    setForm(prev => ({ ...prev, amount: suggested }));
+                  }}
+                  className="text-xs font-medium text-accent-blue hover:text-blue-400 transition-colors shrink-0"
+                >
+                  Usar
+                </button>
+              </div>
+            );
+          })()}
 
           {/* Category — visual grid */}
           <div>

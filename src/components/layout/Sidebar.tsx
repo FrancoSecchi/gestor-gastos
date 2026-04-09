@@ -9,9 +9,10 @@ import {
   Database,
   Tag,
   PieChart,
+  Home,
 } from 'lucide-react';
 
-export type ActiveView = 'dashboard' | 'transactions' | 'analysis' | 'categories' | 'rule502030' | 'settings' | 'database';
+export type ActiveView = 'dashboard' | 'transactions' | 'analysis' | 'categories' | 'rule502030' | 'vivienda' | 'settings' | 'database';
 
 interface SidebarProps {
   activeView: ActiveView;
@@ -25,6 +26,7 @@ const navItems = [
   { id: 'analysis' as ActiveView, label: 'Análisis IA', icon: Brain },
   { id: 'categories' as ActiveView, label: 'Categorías', icon: Tag },
   { id: 'rule502030' as ActiveView, label: 'Regla 50/30/20', icon: PieChart },
+  { id: 'vivienda' as ActiveView, label: 'Vivienda', icon: Home },
   { id: 'settings' as ActiveView, label: 'Configuración', icon: Settings },
   { id: 'database' as ActiveView, label: 'Base de datos', icon: Database },
 ];
