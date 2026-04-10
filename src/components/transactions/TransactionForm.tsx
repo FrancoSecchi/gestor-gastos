@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { X, Save, Plus, Eye, Calendar, ChevronDown } from 'lucide-react';
+import { X, Save, Plus, Eye, Calendar, Paperclip, FileX } from 'lucide-react';
+import { open as openDialog } from '@tauri-apps/plugin-dialog';
+import { copyReceiptFile, deleteReceiptFile } from '../../lib/receiptUtils';
 import { DatePicker } from '../ui/DatePicker';
 import { Transaction, NewTransaction, TransactionType, DollarRate, getCategoryColor } from '../../types';
 import { format } from 'date-fns';
@@ -61,6 +63,9 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
   const [mounted, setMounted] = useState(false);
   const [formMode, setFormMode] = useState<'expense' | 'income' | 'transfer'>('expense');
   const [transferMode, setTransferMode] = useState<'deposit' | 'withdraw'>('deposit');
+  // Receipt state
+  const [pendingFilePath, setPendingFilePath] = useState<string | null>(null); // ruta local seleccionada
+  const [removeReceipt, setRemoveReceipt] = useState(false); // si el usuario quiere quitar el comprobante existente
   const amountRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -101,6 +106,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
       setFormMode(initialType ?? 'expense');
       setTransferMode('deposit');
     }
+    setPendingFilePath(null);
+    setRemoveReceipt(false);
   }, [transaction]);
 
   useEffect(() => {
@@ -219,6 +226,22 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
     });
   };
 
+  const handlePickFile = async () => {
+    const selected = await openDialog({
+      multiple: false,
+      filters: [{ name: 'Comprobante', extensions: ['pdf', 'png', 'jpg', 'jpeg'] }],
+    });
+    if (selected && typeof selected === 'string') {
+      setPendingFilePath(selected);
+      setRemoveReceipt(false);
+    }
+  };
+
+  const handleRemoveReceipt = () => {
+    setPendingFilePath(null);
+    setRemoveReceipt(true);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -234,10 +257,21 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
 
     setLoading(true);
     try {
+      let receiptPath: string | null = transaction?.receipt_path ?? null;
+
+      if (removeReceipt) {
+        if (receiptPath) await deleteReceiptFile(receiptPath);
+        receiptPath = null;
+      } else if (pendingFilePath) {
+        if (receiptPath) await deleteReceiptFile(receiptPath);
+        receiptPath = await copyReceiptFile(pendingFilePath, form.category, form.date);
+      }
+
+      const payload = { ...form, receipt_path: receiptPath };
       if (transaction) {
-        await onSave({ ...transaction, ...form });
+        await onSave({ ...transaction, ...payload });
       } else {
-        await onSave(form);
+        await onSave(payload);
       }
       onClose();
     } catch (err) {
@@ -596,6 +630,54 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
               </div>
             </div>
           )}
+
+          {/* Comprobante */}
+          <div>
+            <label className="block text-xs font-medium text-text-secondary mb-1.5 uppercase tracking-wider">
+              Comprobante
+            </label>
+            {(() => {
+              const existingFilename = !removeReceipt ? (transaction?.receipt_path ?? null) : null;
+              const displayPath = pendingFilePath ?? (existingFilename ? existingFilename : null);
+
+              if (displayPath) {
+                const name = displayPath.includes('/') || displayPath.includes('\\')
+                  ? displayPath.split(/[\\/]/).pop()!
+                  : displayPath;
+                return (
+                  <div className="flex items-center gap-2 px-3 py-2 bg-accent-blue/8 border border-accent-blue/25 rounded-xl">
+                    <Paperclip size={13} className="text-accent-blue flex-shrink-0" />
+                    <span className="text-xs text-text-primary flex-1 truncate" title={name}>{name}</span>
+                    <button
+                      type="button"
+                      onClick={handlePickFile}
+                      className="text-xs text-text-secondary hover:text-accent-blue transition-colors shrink-0"
+                    >
+                      Cambiar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleRemoveReceipt}
+                      className="p-1 rounded-lg text-text-secondary hover:text-accent-red hover:bg-accent-red/10 transition-all"
+                    >
+                      <FileX size={13} />
+                    </button>
+                  </div>
+                );
+              }
+
+              return (
+                <button
+                  type="button"
+                  onClick={handlePickFile}
+                  className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl border border-dashed border-border-color text-text-secondary hover:border-accent-blue/50 hover:text-accent-blue hover:bg-accent-blue/5 transition-all duration-150 text-xs"
+                >
+                  <Paperclip size={13} />
+                  Adjuntar comprobante (PDF, PNG, JPG)
+                </button>
+              );
+            })()}
+          </div>
 
           {error && (
             <div className="text-xs text-accent-red bg-accent-red/10 border border-accent-red/25 rounded-xl px-3 py-2.5 animate-fade-in">

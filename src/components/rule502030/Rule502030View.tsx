@@ -11,6 +11,8 @@ interface Rule502030ViewProps {
   expenseCategories: string[];
   mapping: Rule502030Mapping | null;
   effectiveMapping: Rule502030Mapping;
+  startDate?: string;
+  endDate?: string;
   onSave: (m: Rule502030Mapping) => Promise<void>;
   onReset: () => Promise<void>;
 }
@@ -27,6 +29,8 @@ export const Rule502030View: React.FC<Rule502030ViewProps> = ({
   expenseCategories,
   mapping,
   effectiveMapping,
+  startDate,
+  endDate,
   onSave,
   onReset,
 }) => {
@@ -85,6 +89,8 @@ export const Rule502030View: React.FC<Rule502030ViewProps> = ({
         transactions={transactions}
         totalIncome={totalIncome}
         mapping={effectiveMapping}
+        startDate={startDate}
+        endDate={endDate}
       />
 
       {/* Assignment form */}

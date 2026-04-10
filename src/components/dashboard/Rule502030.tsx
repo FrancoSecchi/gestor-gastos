@@ -4,11 +4,14 @@ import { Transaction, Rule502030Data } from '../../types';
 import { formatARS } from '../../lib/export';
 import { calculateRule502030 } from '../../lib/rule502030';
 import { Rule502030Mapping } from '../../lib/rule502030Mapping';
+import { differenceInDays, parseISO, isAfter, isBefore, startOfDay } from 'date-fns';
 
 interface Rule502030Props {
   transactions: Transaction[];
   totalIncome: number;
   mapping: Rule502030Mapping;
+  startDate?: string;
+  endDate?: string;
 }
 
 const GROUP_META: Record<string, { icon: string; gradient: string; gradientOver: string }> = {
@@ -61,7 +64,7 @@ function HealthScore({ data }: { data: Rule502030Data[] }) {
   );
 }
 
-export const Rule502030: React.FC<Rule502030Props> = ({ transactions, totalIncome, mapping }) => {
+export const Rule502030: React.FC<Rule502030Props> = ({ transactions, totalIncome, mapping, startDate, endDate }) => {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -70,6 +73,21 @@ export const Rule502030: React.FC<Rule502030Props> = ({ transactions, totalIncom
   }, []);
 
   const data = calculateRule502030(transactions, totalIncome, mapping);
+
+  // Calcular ratio de progreso del período
+  const progressRatio = (() => {
+    if (!startDate || !endDate) return 1;
+    const today = startOfDay(new Date());
+    const start = parseISO(startDate);
+    const end = parseISO(endDate);
+    if (isBefore(today, start)) return 0;
+    if (isAfter(today, end)) return 1;
+    const elapsed = differenceInDays(today, start) + 1;
+    const total = differenceInDays(end, start) + 1;
+    return elapsed / total;
+  })();
+
+  const showProjection = progressRatio > 0 && progressRatio < 1;
 
   if (totalIncome === 0) {
     return (
@@ -105,6 +123,12 @@ export const Rule502030: React.FC<Rule502030Props> = ({ transactions, totalIncom
           const barWidth = Math.min(pctUsed, 100);
           const meta = GROUP_META[item.group];
 
+          const projectedSpent = showProjection && progressRatio > 0 ? item.spent / progressRatio : null;
+          const projectedPct = projectedSpent !== null && item.budget > 0
+            ? Math.min((projectedSpent / item.budget) * 100, 100)
+            : null;
+          const projectionIsOver = projectedSpent !== null && projectedSpent > item.budget;
+
           return (
             <div key={item.group} style={{ animationDelay: `${idx * 80}ms` }}>
               <div className="flex items-center justify-between mb-1.5">
@@ -130,29 +154,56 @@ export const Rule502030: React.FC<Rule502030Props> = ({ transactions, totalIncom
                 </div>
               </div>
 
-              {/* Gradient progress bar */}
-              <div className="h-2 bg-bg-secondary rounded-full overflow-hidden">
-                <div
-                  className="h-full rounded-full"
-                  style={{
-                    width: mounted ? `${barWidth}%` : '0%',
-                    background: isOver ? meta.gradientOver : meta.gradient,
-                    transition: `width 0.8s cubic-bezier(0.16,1,0.3,1) ${idx * 100}ms`,
-                  }}
-                />
+              {/* Gradient progress bar + projection marker */}
+              <div className="relative">
+                <div className="h-2 bg-bg-secondary rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full"
+                    style={{
+                      width: mounted ? `${barWidth}%` : '0%',
+                      background: isOver ? meta.gradientOver : meta.gradient,
+                      transition: `width 0.8s cubic-bezier(0.16,1,0.3,1) ${idx * 100}ms`,
+                    }}
+                  />
+                </div>
+                {showProjection && projectedPct !== null && mounted && (
+                  <div
+                    className="absolute top-0 h-2 flex flex-col items-center"
+                    style={{ left: `${projectedPct}%`, transform: 'translateX(-50%)' }}
+                  >
+                    {/* Pip above bar */}
+                    <div
+                      className="w-0 h-0 -mt-1.5"
+                      style={{
+                        borderLeft: '3px solid transparent',
+                        borderRight: '3px solid transparent',
+                        borderTop: `4px solid ${projectionIsOver ? '#f97316' : '#94a3b8'}`,
+                      }}
+                    />
+                    {/* Vertical line */}
+                    <div
+                      className="w-0.5 h-2 rounded-full"
+                      style={{ background: projectionIsOver ? '#f97316' : '#94a3b8' }}
+                    />
+                  </div>
+                )}
               </div>
 
-              {/* Status + percentage */}
+              {/* Status + projection */}
               <div className="flex items-center justify-between mt-1">
                 <p className={`text-xs ${isOver ? 'text-accent-orange' : 'text-text-secondary'}`}>
-                  {isOver
-                    ? `Excedido por $${formatARS(diff)}`
-                    : `Disponible $${formatARS(diff)}`
-                  }
+                  {isOver ? `Excedido por $${formatARS(diff)}` : `Disponible $${formatARS(diff)}`}
                 </p>
-                <span className={`text-xs font-medium tabular-nums ${isOver ? 'text-accent-orange' : 'text-text-secondary'}`}>
-                  {pctUsed.toFixed(0)}%
-                </span>
+                <div className="flex items-center gap-2">
+                  {showProjection && projectedSpent !== null && (
+                    <span className={`text-xs tabular-nums ${projectionIsOver ? 'text-accent-orange' : 'text-text-secondary/60'}`}>
+                      → ${formatARS(projectedSpent)}
+                    </span>
+                  )}
+                  <span className={`text-xs font-medium tabular-nums ${isOver ? 'text-accent-orange' : 'text-text-secondary'}`}>
+                    {pctUsed.toFixed(0)}%
+                  </span>
+                </div>
               </div>
 
               {/* Category tags */}
@@ -170,6 +221,21 @@ export const Rule502030: React.FC<Rule502030Props> = ({ transactions, totalIncom
           );
         })}
       </div>
+
+      {showProjection && (() => {
+        const totalProjected = data.reduce((sum, item) => sum + (progressRatio > 0 ? item.spent / progressRatio : item.spent), 0);
+        const remainder = totalIncome - totalProjected;
+        const isNegative = remainder < 0;
+        return (
+          <div className={`mt-3 pt-3 border-t border-border-color flex items-center gap-1.5 text-xs`}>
+            <span className="text-text-secondary">A este ritmo cerrarás el mes con</span>
+            <span className={`font-semibold tabular-nums ${isNegative ? 'text-accent-orange' : 'text-accent-green'}`}>
+              {isNegative ? '-' : '+'}${formatARS(Math.abs(remainder))}
+            </span>
+            <span className="text-text-secondary">{isNegative ? 'en rojo' : 'disponibles'}</span>
+          </div>
+        );
+      })()}
 
       <HealthScore data={data} />
     </div>

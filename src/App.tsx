@@ -17,6 +17,7 @@ import { HousingView } from './components/housing/HousingView';
 import { AhorrosView } from './components/ahorros/AhorrosView';
 import { ToastProvider, useToast } from './components/ui/Toast';
 import { useTransactions } from './hooks/useTransactions';
+import { deleteReceiptFile } from './lib/receiptUtils';
 import { useDollarRate } from './hooks/useDollarRate';
 import { useFilters } from './hooks/useFilters';
 import { Transaction, NewTransaction } from './types';
@@ -181,13 +182,15 @@ function AppInner() {
     if (!confirmed) return;
 
     try {
+      const tx = transactions.find(t => t.id === id);
+      if (tx?.receipt_path) await deleteReceiptFile(tx.receipt_path);
       await removeTransaction(id);
       toast.success('Transacción eliminada', 'La transacción fue eliminada correctamente.');
     } catch (err) {
       await logError('App.handleDelete', err);
       toast.error('Error al eliminar', getReadableError(err));
     }
-  }, [removeTransaction, toast]);
+  }, [removeTransaction, transactions, toast]);
 
   const handleClearAllData = useCallback(async () => {
     try {
@@ -282,6 +285,8 @@ function AppInner() {
                     transactions={transactions}
                     totalIncome={summary?.total_income ?? 0}
                     mapping={effectiveRule502030Mapping}
+                    startDate={dateRange.start}
+                    endDate={dateRange.end}
                   />
                   <DollarRate
                     rates={rates}
@@ -379,6 +384,8 @@ function AppInner() {
                 expenseCategories={expenseCategories}
                 mapping={rule502030Mapping}
                 effectiveMapping={effectiveRule502030Mapping}
+                startDate={dateRange.start}
+                endDate={dateRange.end}
                 onSave={updateRule502030Mapping}
                 onReset={async () => {
                   await updateRule502030Mapping(

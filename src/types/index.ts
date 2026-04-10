@@ -34,6 +34,7 @@ export interface Transaction {
   category: string;
   subcategory?: string | null;
   description?: string | null;
+  receipt_path?: string | null;
   date: string;
   created_at: string;
 }
@@ -47,6 +48,7 @@ export interface NewTransaction {
   category: string;
   subcategory?: string | null;
   description?: string | null;
+  receipt_path?: string | null;
   date: string;
 }
 

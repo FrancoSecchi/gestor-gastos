@@ -1,7 +1,8 @@
-import React, { useMemo } from 'react';
-import { Edit2, Trash2, Plus, Download, FileJson, PackageOpen } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Edit2, Trash2, Plus, Download, FileJson, PackageOpen, Paperclip } from 'lucide-react';
 import { Transaction, FilterState, getCategoryColor } from '../../types';
 import { formatARS } from '../../lib/export';
+import { ReceiptViewer } from './ReceiptViewer';
 import { format, parseISO, isToday, isYesterday, isThisWeek, isThisMonth } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -55,6 +56,8 @@ export const TransactionList: React.FC<TransactionListProps> = ({
   onExportExcel,
   onExportClaude,
 }) => {
+  const [viewingReceipt, setViewingReceipt] = useState<string | null>(null);
+
   // Apply local filters
   const filtered = useMemo(() => transactions.filter(tx => {
     if (filters.type !== 'all' && tx.type !== filters.type) return false;
@@ -260,6 +263,15 @@ export const TransactionList: React.FC<TransactionListProps> = ({
 
                       <td className="px-4 py-2.5 text-right">
                         <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all duration-150">
+                          {tx.receipt_path && (
+                            <button
+                              onClick={() => setViewingReceipt(tx.receipt_path!)}
+                              className="p-1.5 rounded-lg text-accent-blue hover:bg-accent-blue/10 transition-all duration-150"
+                              title="Ver comprobante"
+                            >
+                              <Paperclip size={12} />
+                            </button>
+                          )}
                           <button
                             onClick={() => onEdit(tx)}
                             className="p-1.5 rounded-lg text-text-secondary hover:text-accent-blue hover:bg-accent-blue/10 transition-all duration-150"
@@ -284,6 +296,12 @@ export const TransactionList: React.FC<TransactionListProps> = ({
           </table>
         )}
       </div>
+      {viewingReceipt && (
+        <ReceiptViewer
+          filename={viewingReceipt}
+          onClose={() => setViewingReceipt(null)}
+        />
+      )}
     </div>
   );
 };
