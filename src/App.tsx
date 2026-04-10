@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, Component, ErrorInfo, ReactNode } from 'react';
+import React, { useState, useCallback, useEffect, Component, ErrorInfo, ReactNode, lazy, Suspense } from 'react';
 import { Sidebar, ActiveView } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
 import { SummaryCards } from './components/dashboard/SummaryCards';
@@ -9,14 +9,18 @@ import { RecurringPaymentsWidget } from './components/dashboard/RecurringPayment
 import { TransactionFilters } from './components/transactions/TransactionFilters';
 import { TransactionList } from './components/transactions/TransactionList';
 import { TransactionForm } from './components/transactions/TransactionForm';
-import { ClaudeAnalysis } from './components/analysis/ClaudeAnalysis';
 import { Settings } from './components/settings/Settings';
-import { DatabaseViewer } from './components/database/DatabaseViewer';
 import { CategoriesView } from './components/categories/CategoriesView';
 import { Rule502030View } from './components/rule502030/Rule502030View';
-import { HousingView } from './components/housing/HousingView';
 import { AhorrosView } from './components/ahorros/AhorrosView';
 import { ToastProvider, useToast } from './components/ui/Toast';
+
+// Lazy load heavy components
+const ClaudeAnalysis = lazy(() => import('./components/analysis/ClaudeAnalysis').then(m => ({ default: m.ClaudeAnalysis })));
+const DatabaseViewer = lazy(() => import('./components/database/DatabaseViewer').then(m => ({ default: m.DatabaseViewer })));
+const HousingView = lazy(() => import('./components/housing/HousingView').then(m => ({ default: m.HousingView })));
+import { CategoriesProvider } from './contexts/CategoriesContext';
+import { useCategoriesContext } from './hooks/useCategoriesContext';
 import { useTransactions } from './hooks/useTransactions';
 import { useRecurringPayments } from './hooks/useRecurringPayments';
 import { deleteReceiptFile } from './lib/receiptUtils';
@@ -30,9 +34,7 @@ import {
   getDefaultRule502030Mapping,
   ensureMappingCoversCategories,
 } from './lib/rule502030Mapping';
-import { useCustomCategories } from './hooks/useCustomCategories';
 import { useRule502030Mapping } from './hooks/useRule502030Mapping';
-import { useCategoryIcons } from './hooks/useCategoryIcons';
 import { useHousingContract } from './hooks/useHousingContract';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { ChevronDown } from 'lucide-react';
@@ -144,17 +146,15 @@ function AppInner() {
   const {
     expenseCategories,
     incomeCategories,
+    categoryIcons,
+    setCategoryIcon,
     addExpense: addCustomExpenseCategory,
     addIncome: addCustomIncomeCategory,
     removeExpense: removeCustomExpenseCategory,
     removeIncome: removeCustomIncomeCategory,
     renameExpense: renameCustomExpenseCategory,
     renameIncome: renameCustomIncomeCategory,
-    expenseCustom,
-    incomeCustom,
-    refresh: refreshCustomCategories,
-  } = useCustomCategories();
-  const { icons: categoryIcons, setIcon: setCategoryIcon } = useCategoryIcons();
+  } = useCategoriesContext();
   const { contract: housingContract, loading: housingLoading, save: saveHousingContract, remove: removeHousingContract } = useHousingContract();
   const { recurringPayments, refresh: refreshRecurring, toggleRecurring, removeRecurring } = useRecurringPayments();
 
@@ -315,7 +315,6 @@ function AppInner() {
   const handleClearAllData = useCallback(async () => {
     try {
       await clearDatabase();
-      await refreshCustomCategories();
       await refreshRule502030Mapping();
       toast.success('Base de datos limpiada', 'Se eliminó toda la información guardada.');
     } catch (err) {
@@ -323,7 +322,7 @@ function AppInner() {
       toast.error('Error al limpiar', getReadableError(err));
       throw err;
     }
-  }, [clearDatabase, refreshCustomCategories, refreshRule502030Mapping, toast]);
+  }, [clearDatabase, refreshRule502030Mapping, toast]);
 
   const handleExportExcel = useCallback(async () => {
     if (!summary) return;
@@ -499,14 +498,16 @@ function AppInner() {
                 />
               </div>
               <div className="flex-1 overflow-hidden">
-                <ClaudeAnalysis
-                  transactions={transactions}
-                  summary={summary}
-                  startDate={dateRange.start}
-                  endDate={dateRange.end}
-                  rule502030Mapping={effectiveRule502030Mapping}
-                  onNavigateSettings={() => setActiveView('settings')}
-                />
+                <Suspense fallback={<div className="flex items-center justify-center h-full"><p className="text-text-secondary">Cargando análisis...</p></div>}>
+                  <ClaudeAnalysis
+                    transactions={transactions}
+                    summary={summary}
+                    startDate={dateRange.start}
+                    endDate={dateRange.end}
+                    rule502030Mapping={effectiveRule502030Mapping}
+                    onNavigateSettings={() => setActiveView('settings')}
+                  />
+                </Suspense>
               </div>
             </div>
           )}
@@ -517,8 +518,8 @@ function AppInner() {
                 transactions={transactions}
                 expenseCategories={expenseCategories}
                 incomeCategories={incomeCategories}
-                customExpenseCategories={expenseCustom}
-                customIncomeCategories={incomeCustom}
+                customExpenseCategories={expenseCategories.filter(c => !['Comida', 'Transporte', 'Bienestar', 'Servicios', 'Suscripciones', 'Otros'].includes(c))}
+                customIncomeCategories={incomeCategories.filter(c => !['Salario', 'Freelance', 'Otros'].includes(c))}
                 categoryIcons={categoryIcons}
                 onSetIcon={setCategoryIcon}
                 onAddExpense={addCustomExpenseCategory}
@@ -564,19 +565,23 @@ function AppInner() {
           {activeView === 'vivienda' && (
             <div className="animate-fade-in">
               <HousingErrorBoundary>
-                <HousingView
-                  contract={housingContract}
-                  loading={housingLoading}
-                  onSave={saveHousingContract}
-                  onDelete={removeHousingContract}
-                />
+                <Suspense fallback={<div className="flex items-center justify-center h-full"><p className="text-text-secondary">Cargando vivienda...</p></div>}>
+                  <HousingView
+                    contract={housingContract}
+                    loading={housingLoading}
+                    onSave={saveHousingContract}
+                    onDelete={removeHousingContract}
+                  />
+                </Suspense>
               </HousingErrorBoundary>
             </div>
           )}
 
           {activeView === 'database' && (
             <div className="animate-fade-in">
-              <DatabaseViewer />
+              <Suspense fallback={<div className="flex items-center justify-center h-full"><p className="text-text-secondary">Cargando base de datos...</p></div>}>
+                <DatabaseViewer />
+              </Suspense>
             </div>
           )}
 
@@ -612,7 +617,9 @@ function AppInner() {
 export default function App() {
   return (
     <ToastProvider>
-      <AppInner />
+      <CategoriesProvider>
+        <AppInner />
+      </CategoriesProvider>
     </ToastProvider>
   );
 }

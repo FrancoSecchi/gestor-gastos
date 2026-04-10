@@ -91,6 +91,10 @@ async function initializeDb(database: Database): Promise<void> {
   // Indexes
   await database.execute(`CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date)`);
   await database.execute(`CREATE INDEX IF NOT EXISTS idx_transactions_type ON transactions(type)`);
+  await database.execute(`CREATE INDEX IF NOT EXISTS idx_transactions_category ON transactions(category)`);
+  await database.execute(`CREATE INDEX IF NOT EXISTS idx_transactions_recurring_id ON transactions(recurring_id)`);
+  await database.execute(`CREATE INDEX IF NOT EXISTS idx_transactions_date_type ON transactions(date, type)`);
+  await database.execute(`CREATE INDEX IF NOT EXISTS idx_recurring_is_active ON recurring_payments(is_active)`);
 
   // Check if initialized
   const result = await database.select<{ value: string }[]>(

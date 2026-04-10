@@ -53,21 +53,81 @@ export function useTransactions(startDate: string, endDate: string): UseTransact
   }, [startDate, endDate, refresh]);
 
   const addTransaction = useCallback(async (tx: NewTransaction): Promise<Transaction> => {
-    const newTx = await createTransaction(tx);
-    await refresh(startDate, endDate);
-    return newTx;
-  }, [startDate, endDate, refresh]);
+    // Optimistic update: assume success and add to state immediately
+    const optimisticTx: Transaction = {
+      id: `temp_${Date.now()}`,
+      ...tx,
+      created_at: new Date().toISOString(),
+      receipt_path: null,
+      recurring_id: null,
+    };
+    
+    const prevTransactions = transactions;
+    const prevSummary = summary;
+    
+    setTransactions(prev => [...prev, optimisticTx]);
+    
+    try {
+      const newTx = await createTransaction(tx);
+      // Replace temp with real transaction
+      setTransactions(prev => prev.map(t => t.id === optimisticTx.id ? newTx : t));
+      // Sync summary
+      const newSummary = await getSummary(startDate, endDate);
+      setSummary(newSummary);
+      return newTx;
+    } catch (err) {
+      // Rollback on error
+      setTransactions(prevTransactions);
+      setSummary(prevSummary);
+      await logError('useTransactions.addTransaction', err);
+      throw err;
+    }
+  }, [transactions, summary, startDate, endDate]);
 
   const editTransaction = useCallback(async (tx: Transaction): Promise<Transaction> => {
-    const updated = await updateTransaction(tx);
-    await refresh(startDate, endDate);
-    return updated;
-  }, [startDate, endDate, refresh]);
+    const prevTransactions = transactions;
+    const prevSummary = summary;
+    
+    // Optimistic update
+    setTransactions(prev => prev.map(t => t.id === tx.id ? tx : t));
+    
+    try {
+      const updated = await updateTransaction(tx);
+      // Ensure state matches DB
+      setTransactions(prev => prev.map(t => t.id === tx.id ? updated : t));
+      // Sync summary
+      const newSummary = await getSummary(startDate, endDate);
+      setSummary(newSummary);
+      return updated;
+    } catch (err) {
+      // Rollback on error
+      setTransactions(prevTransactions);
+      setSummary(prevSummary);
+      await logError('useTransactions.editTransaction', err);
+      throw err;
+    }
+  }, [transactions, summary, startDate, endDate]);
 
   const removeTransaction = useCallback(async (id: string): Promise<void> => {
-    await deleteTransaction(id);
-    await refresh(startDate, endDate);
-  }, [startDate, endDate, refresh]);
+    const prevTransactions = transactions;
+    const prevSummary = summary;
+    
+    // Optimistic update
+    setTransactions(prev => prev.filter(t => t.id !== id));
+    
+    try {
+      await deleteTransaction(id);
+      // Sync summary
+      const newSummary = await getSummary(startDate, endDate);
+      setSummary(newSummary);
+    } catch (err) {
+      // Rollback on error
+      setTransactions(prevTransactions);
+      setSummary(prevSummary);
+      await logError('useTransactions.removeTransaction', err);
+      throw err;
+    }
+  }, [transactions, summary, startDate, endDate]);
 
   const clearDatabase = useCallback(async (): Promise<void> => {
     await clearAllData();
