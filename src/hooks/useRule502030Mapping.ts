@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   Rule502030Mapping,
   loadOrMergeMapping,
@@ -9,7 +9,7 @@ import {
 
 export function useRule502030Mapping(expenseCategories: string[]) {
   const [mapping, setMapping] = useState<Rule502030Mapping | null>(null);
-  const catKey = expenseCategories.join('\0');
+  const catKey = useMemo(() => expenseCategories.join('\0'), [expenseCategories]);
 
   const refresh = useCallback(async () => {
     const m = await loadOrMergeMapping(expenseCategories);

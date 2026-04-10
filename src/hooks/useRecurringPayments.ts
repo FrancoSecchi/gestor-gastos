@@ -49,12 +49,16 @@ export function useRecurringPayments(): UseRecurringPaymentsReturn {
     return updated;
   }, [refresh]);
 
-  const toggleRecurring = useCallback(async (id: string, isActive: boolean) => {
-    const rp = (await getRecurringPayments()).find(r => r.id === id);
-    if (!rp) return;
-    await updateRecurringPayment({ ...rp, is_active: isActive ? 1 : 0 });
-    await refresh();
-  }, [refresh]);
+  const toggleRecurring = useCallback(
+    async (id: string, isActive: boolean) => {
+      // Use local state instead of fetching all recurring payments again
+      const rp = recurringPayments.find(r => r.id === id);
+      if (!rp) return;
+      await updateRecurringPayment({ ...rp, is_active: isActive ? 1 : 0 });
+      await refresh();
+    },
+    [recurringPayments, refresh]
+  );
 
   const removeRecurring = useCallback(async (id: string) => {
     await deleteRecurringPayment(id);

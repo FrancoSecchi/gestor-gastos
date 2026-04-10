@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { DollarRate, DollarCache } from '../types';
 import { getSetting, setSetting } from '../lib/db';
 
@@ -18,14 +18,15 @@ export function useDollarRate(): UseDollarRateReturn {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  const lastFetchTimeRef = useRef<number>(0);
 
   const fetchRates = useCallback(async (force = false) => {
     setLoading(true);
     setError(null);
 
     try {
-      // Check cache first
-      if (!force) {
+      // Check cache first (using ref to avoid infinite loops)
+      if (!force && Date.now() - lastFetchTimeRef.current < CACHE_DURATION) {
         const cached = await getSetting('dollar_cache');
         if (cached) {
           const cacheData: DollarCache = JSON.parse(cached);
@@ -42,12 +43,14 @@ export function useDollarRate(): UseDollarRateReturn {
       if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
 
       const data: DollarRate[] = await response.json();
+      const timestamp = Date.now();
       const cache: DollarCache = {
         rates: data,
-        timestamp: Date.now(),
+        timestamp,
       };
 
       await setSetting('dollar_cache', JSON.stringify(cache));
+      lastFetchTimeRef.current = timestamp;
       setRates(data);
       setLastUpdate(new Date());
     } catch (err) {
