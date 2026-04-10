@@ -11,6 +11,7 @@ const SAVINGS_CATEGORIES = ['Ahorro', 'Inversión'];
 
 interface TransactionFormProps {
   transaction?: Transaction | null;
+  initialType?: 'income' | 'expense';
   expenseCategories: string[];
   incomeCategories: string[];
   categoryIcons: Record<string, string>;
@@ -40,6 +41,7 @@ function formatAmountDisplay(value: number): string {
 
 export const TransactionForm: React.FC<TransactionFormProps> = ({
   transaction,
+  initialType,
   expenseCategories,
   incomeCategories,
   categoryIcons,
@@ -94,9 +96,9 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
         setFormMode('income');
       }
     } else {
-      setForm(defaultForm);
+      setForm({ ...defaultForm, type: initialType ?? 'expense' });
       setAmountInput('');
-      setFormMode('expense');
+      setFormMode(initialType ?? 'expense');
       setTransferMode('deposit');
     }
   }, [transaction]);
@@ -362,7 +364,6 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
                   onClick={() => handleFormModeChange(mode)}
                   className={`
                     py-2.5 rounded-xl text-sm font-semibold transition-all duration-200
-                    hover:scale-[1.02] active:scale-[0.98]
                     ${formMode === mode
                       ? mode === 'expense'
                         ? 'bg-accent-red/20 text-accent-red border border-accent-red/40 shadow-sm shadow-accent-red/10'
@@ -477,10 +478,10 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
                       onClick={() => setForm(prev => ({ ...prev, category: cat }))}
                       className={`
                         flex flex-col items-center gap-1 p-2 rounded-xl text-xs font-medium
-                        transition-all duration-150 hover:scale-105 active:scale-95 border
+                        transition-colors duration-150 border
                         ${isSelected
                           ? 'border-opacity-60 shadow-sm'
-                          : 'border-border-color bg-bg-secondary text-text-secondary hover:border-border-color/80 hover:text-text-primary'
+                          : 'border-border-color bg-bg-secondary text-text-secondary hover:border-text-secondary/60 hover:text-text-primary'
                         }
                       `}
                       style={isSelected ? {

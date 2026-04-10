@@ -120,7 +120,7 @@ export const ALL_EXPENSE_CATEGORIES: ExpenseCategory[] = [
 ];
 
 export const ALL_INCOME_CATEGORIES: IncomeCategory[] = [
-  'Salario', 'Freelance', 'Inversiones', 'Otros ingresos', 'Retiro de ahorro',
+  'Salario', 'Freelance', 'Inversiones', 'Otros ingresos',
 ];
 
 export const CATEGORY_COLORS: Record<string, string> = {

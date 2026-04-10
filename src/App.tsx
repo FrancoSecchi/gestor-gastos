@@ -78,9 +78,10 @@ function AppInner() {
   const [activeView, setActiveView] = useState<ActiveView>('dashboard');
   const [showForm, setShowForm] = useState(false);
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
+  const [formInitialType, setFormInitialType] = useState<'income' | 'expense' | undefined>(undefined);
 
   const { filters, dateRange, setDateFilter, setCustomRange, setTypeFilter, setCategoryFilter } = useFilters();
-  const { transactions, summary, loading, addTransaction, editTransaction, removeTransaction, clearDatabase } = useTransactions(
+  const { transactions, summary, loading, addTransaction, editTransaction, removeTransaction, clearDatabase, refresh: refreshTransactions } = useTransactions(
     dateRange.start,
     dateRange.end
   );
@@ -121,6 +122,22 @@ function AppInner() {
     [addCustomExpenseCategory, addCustomIncomeCategory]
   );
 
+  const handleRenameExpenseCategory = useCallback(
+    async (oldName: string, newName: string) => {
+      await renameCustomExpenseCategory(oldName, newName);
+      await refreshTransactions(dateRange.start, dateRange.end);
+    },
+    [renameCustomExpenseCategory, refreshTransactions, dateRange.start, dateRange.end]
+  );
+
+  const handleRenameIncomeCategory = useCallback(
+    async (oldName: string, newName: string) => {
+      await renameCustomIncomeCategory(oldName, newName);
+      await refreshTransactions(dateRange.start, dateRange.end);
+    },
+    [renameCustomIncomeCategory, refreshTransactions, dateRange.start, dateRange.end]
+  );
+
   const handleSaveTransaction = useCallback(async (tx: NewTransaction | Transaction) => {
     const isEdit = 'id' in tx;
     try {
@@ -143,11 +160,20 @@ function AppInner() {
     setShowForm(true);
   }, []);
 
-  const handleOpenForm = useCallback(() => setShowForm(true), []);
+  const handleOpenForm = useCallback(() => {
+    setFormInitialType(undefined);
+    setShowForm(true);
+  }, []);
+
+  const handleOpenFormWithType = useCallback((type: 'income' | 'expense') => {
+    setFormInitialType(type);
+    setShowForm(true);
+  }, []);
 
   const handleCloseForm = useCallback(() => {
     setShowForm(false);
     setEditingTx(null);
+    setFormInitialType(undefined);
   }, []);
 
   const handleDelete = useCallback(async (id: string) => {
@@ -241,7 +267,7 @@ function AppInner() {
               />
 
               {/* Summary cards */}
-              <SummaryCards summary={summary} loading={loading} />
+              <SummaryCards summary={summary} loading={loading} onOpenForm={handleOpenFormWithType} />
 
               {/* Charts + Rule 502030 + Dollar */}
               <div className="grid grid-cols-3 gap-4">
@@ -339,8 +365,8 @@ function AppInner() {
                 onAddIncome={addCustomIncomeCategory}
                 onRemoveExpense={removeCustomExpenseCategory}
                 onRemoveIncome={removeCustomIncomeCategory}
-                onRenameExpense={renameCustomExpenseCategory}
-                onRenameIncome={renameCustomIncomeCategory}
+                onRenameExpense={handleRenameExpenseCategory}
+                onRenameIncome={handleRenameIncomeCategory}
               />
             </div>
           )}
@@ -404,6 +430,7 @@ function AppInner() {
       {showForm && (
         <TransactionForm
           transaction={editingTx}
+          initialType={formInitialType}
           expenseCategories={expenseCategories}
           incomeCategories={incomeCategories}
           categoryIcons={categoryIcons}

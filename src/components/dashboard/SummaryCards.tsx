@@ -6,6 +6,7 @@ import { formatARS } from '../../lib/export';
 interface SummaryCardsProps {
   summary: Summary | null;
   loading: boolean;
+  onOpenForm?: (type: 'income' | 'expense') => void;
 }
 
 function weeksRemainingInMonth(): number {
@@ -15,7 +16,7 @@ function weeksRemainingInMonth(): number {
   return Math.max(daysLeft / 7, 1 / 7);
 }
 
-export const SummaryCards: React.FC<SummaryCardsProps> = ({ summary, loading }) => {
+export const SummaryCards: React.FC<SummaryCardsProps> = ({ summary, loading, onOpenForm }) => {
   const balance = summary?.balance ?? 0;
   const balancePositive = balance >= 0;
   const weeksLeft = weeksRemainingInMonth();
@@ -36,6 +37,7 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({ summary, loading }) 
       glowColor: 'shadow-accent-green/10',
       isPercentage: false,
       prefix: '+',
+      actionType: 'income' as const,
     },
     {
       label: 'Gastos',
@@ -48,6 +50,7 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({ summary, loading }) 
       glowColor: 'shadow-accent-red/10',
       isPercentage: false,
       prefix: '-',
+      actionType: 'expense' as const,
     },
     {
       label: 'Balance',
@@ -60,6 +63,7 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({ summary, loading }) 
       glowColor: balancePositive ? 'shadow-accent-blue/10' : 'shadow-accent-orange/10',
       isPercentage: false,
       prefix: balancePositive ? '+' : '-',
+      actionType: null,
     },
     {
       label: 'Tasa de Ahorro',
@@ -72,6 +76,7 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({ summary, loading }) 
       glowColor: 'shadow-accent-yellow/10',
       isPercentage: true,
       prefix: '',
+      actionType: null,
     },
   ];
 
@@ -104,14 +109,19 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({ summary, loading }) 
         const showProgress = card.isPercentage;
         const progressPct = Math.min(Math.abs(card.value), 100);
 
+        const isClickable = !!card.actionType && !!onOpenForm;
+
         return (
           <div
             key={card.label}
             className={`
               bg-bg-card border ${card.borderColor} rounded-xl p-4
               card-hover animate-fade-in shadow-lg ${card.glowColor}
+              ${isClickable ? 'cursor-pointer' : ''}
             `}
             style={{ animationDelay: `${idx * 60}ms` }}
+            onClick={isClickable ? () => onOpenForm(card.actionType!) : undefined}
+            title={isClickable ? `Agregar ${card.label === 'Ingresos' ? 'ingreso' : 'gasto'}` : undefined}
           >
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-medium text-text-secondary uppercase tracking-wider">
