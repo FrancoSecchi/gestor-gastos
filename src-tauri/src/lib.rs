@@ -1,5 +1,7 @@
 mod commands;
 
+use tauri::Manager;
+use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 use tauri_plugin_sql::{Migration, MigrationKind};
 
 pub fn run() {
@@ -41,6 +43,8 @@ pub fn run() {
         },
     ];
 
+    let f11 = Shortcut::new(None::<Modifiers>, Code::F11);
+
     tauri::Builder::default()
         .plugin(
             tauri_plugin_sql::Builder::default()
@@ -49,6 +53,18 @@ pub fn run() {
         )
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .setup(move |app| {
+            app.global_shortcut().on_shortcut(f11, move |app, _shortcut, event| {
+                if event.state == ShortcutState::Pressed {
+                    if let Some(win) = app.get_webview_window("main") {
+                        let is_fullscreen = win.is_fullscreen().unwrap_or(false);
+                        let _ = win.set_fullscreen(!is_fullscreen);
+                    }
+                }
+            })?;
+            Ok(())
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

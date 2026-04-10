@@ -8,9 +8,18 @@ interface SummaryCardsProps {
   loading: boolean;
 }
 
+function weeksRemainingInMonth(): number {
+  const now = new Date();
+  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const daysLeft = lastDay - now.getDate() + 1;
+  return Math.max(daysLeft / 7, 1 / 7);
+}
+
 export const SummaryCards: React.FC<SummaryCardsProps> = ({ summary, loading }) => {
   const balance = summary?.balance ?? 0;
   const balancePositive = balance >= 0;
+  const weeksLeft = weeksRemainingInMonth();
+  const perWeek = balance > 0 ? balance / weeksLeft : 0;
   const savingsRate = summary && summary.total_income > 0
     ? (summary.balance / summary.total_income) * 100
     : 0;
@@ -119,6 +128,12 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({ summary, loading }) 
                 : `${card.prefix}$${formatARS(displayValue)}`
               }
             </p>
+
+            {card.label === 'Balance' && balance > 0 && (
+              <p className="text-xs text-text-secondary mt-1 tabular-nums">
+                <span className="text-text-primary font-semibold">${formatARS(Math.round(perWeek))}</span> por semana
+              </p>
+            )}
 
             {showProgress && (
               <div className="mt-2.5">

@@ -207,7 +207,7 @@ function AppInner() {
   }, [transactions, summary, dateRange, toast, effectiveRule502030Mapping]);
 
   return (
-    <div className="flex h-screen bg-bg-primary overflow-hidden">
+    <div className="flex h-full bg-bg-primary overflow-hidden">
       <Sidebar
         activeView={activeView}
         onNavigate={setActiveView}

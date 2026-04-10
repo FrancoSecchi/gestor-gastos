@@ -89,6 +89,18 @@ export function getCurrentAmount(contract: HousingContract): number {
   return getAmountForDate(contract, format(new Date(), 'yyyy-MM-dd'));
 }
 
+export function getAccumulatedRent(contract: HousingContract): number {
+  const todayDate = new Date();
+  const startDate = parseISO(contract.startDate);
+  let cursor = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+  let total = 0;
+  while (cursor <= todayDate) {
+    total += getAmountForDate(contract, format(cursor, 'yyyy-MM-dd'));
+    cursor = addMonths(cursor, 1);
+  }
+  return total;
+}
+
 export function getNextAdjustmentDate(contract: HousingContract): string {
   const sorted = [...contract.adjustments].sort((a, b) => a.date.localeCompare(b.date));
   const lastDate = sorted.length > 0 ? sorted[sorted.length - 1].date : contract.startDate;

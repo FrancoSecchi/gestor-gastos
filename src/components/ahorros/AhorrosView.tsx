@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   AreaChart, Area,
   ComposedChart, Bar, Line,
   XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, ReferenceLine, Legend,
 } from 'recharts';
-import { TrendingUp, DollarSign, Percent, Flame, ChevronDown } from 'lucide-react';
-import { useAhorros, Rule502030Mapping } from '../../hooks/useAhorros';
+import { TrendingUp, DollarSign, Percent, Flame, ChevronDown, Pencil, Check, X } from 'lucide-react';
+import { useAhorros, Rule502030Mapping, InitialBalanceMeta } from '../../hooks/useAhorros';
 import { DollarRate } from '../../types';
 import { formatARS } from '../../lib/export';
 import { format, parseISO } from 'date-fns';
@@ -71,10 +71,16 @@ export const AhorrosView: React.FC<AhorrosViewProps> = ({
   dollarLoading,
   rule502030Mapping,
 }) => {
-  const { data, loading, refresh } = useAhorros(rule502030Mapping);
+  const { data, loading, refresh, saveInitialBalance } = useAhorros(rule502030Mapping);
   const [selectedDollar, setSelectedDollar] = useState<string>('blue');
   const [showDollarMenu, setShowDollarMenu] = useState(false);
   const [showUsd, setShowUsd] = useState(false);
+  const [editingInitial, setEditingInitial] = useState(false);
+  const [initialInput, setInitialInput] = useState('');
+  const [initialCurrency, setInitialCurrency] = useState<'ARS' | 'USD'>('ARS');
+  const [initialDollarType, setInitialDollarType] = useState<string>('blue');
+  const [savingInitial, setSavingInitial] = useState(false);
+  const initialInputRef = useRef<HTMLInputElement>(null);
 
   const currentRate = dollarRates.find(r => r.casa === selectedDollar);
   const arsToUsd = (ars: number) => currentRate ? ars / currentRate.venta : 0;
@@ -99,7 +105,45 @@ export const AhorrosView: React.FC<AhorrosViewProps> = ({
     );
   }
 
-  const { monthly, currentMonthData, totalSavings, totalUsd, avgMonthlySavings, avgSavingsRate, bestMonth, streakMonths } = data;
+  const { monthly, currentMonthData, totalSavings, totalUsd, avgMonthlySavings, avgSavingsRate, bestMonth, streakMonths, initialBalance } = data;
+
+  const handleStartEditInitial = () => {
+    const meta = data?.initialBalanceMeta;
+    if (meta) {
+      setInitialCurrency(meta.currency);
+      setInitialInput(String(meta.amount));
+      if (meta.dollarType) setInitialDollarType(meta.dollarType);
+    } else {
+      setInitialCurrency('ARS');
+      setInitialInput('');
+    }
+    setEditingInitial(true);
+    setTimeout(() => initialInputRef.current?.focus(), 50);
+  };
+
+  const handleSaveInitial = async () => {
+    const amount = parseFloat(initialInput) || 0;
+    let arsAmount = amount;
+    if (initialCurrency === 'USD') {
+      const rate = dollarRates.find(r => r.casa === initialDollarType);
+      arsAmount = rate ? amount * rate.venta : amount;
+    }
+    const meta: InitialBalanceMeta = {
+      currency: initialCurrency,
+      amount,
+      dollarType: initialCurrency === 'USD' ? initialDollarType : undefined,
+      ars: arsAmount,
+    };
+    setSavingInitial(true);
+    await saveInitialBalance(meta);
+    setSavingInitial(false);
+    setEditingInitial(false);
+  };
+
+  const handleCancelInitial = () => {
+    setEditingInitial(false);
+    setInitialInput('');
+  };
   const currentMonth = currentMonthData;
   // Mes anterior al actual en el array
   const currentIdx = monthly.findIndex(m => m.month === currentMonthData.month);
@@ -171,13 +215,122 @@ export const AhorrosView: React.FC<AhorrosViewProps> = ({
         </button>
       </div>
 
+      {/* Saldo inicial de base */}
+      <div className={`px-4 py-3 rounded-xl border bg-bg-card ${editingInitial ? 'border-accent-blue/30' : 'border-border-color'}`}>
+        {!editingInitial ? (
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-[10px] uppercase tracking-wider font-semibold text-text-secondary">Saldo inicial (de base)</span>
+              {initialBalance > 0 && data?.initialBalanceMeta ? (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm font-bold text-text-primary tabular-nums">
+                    {data.initialBalanceMeta.currency === 'USD'
+                      ? `U$S ${data.initialBalanceMeta.amount.toLocaleString('es-AR')}`
+                      : `$${formatARS(initialBalance)}`}
+                  </span>
+                  {data.initialBalanceMeta.currency === 'USD' && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent-blue/10 text-accent-blue font-medium uppercase">
+                      {DOLLAR_LABELS[data.initialBalanceMeta.dollarType ?? ''] ?? data.initialBalanceMeta.dollarType}
+                    </span>
+                  )}
+                  <span className="text-xs text-text-secondary">≈ ${formatARS(initialBalance)} ARS</span>
+                </div>
+              ) : (
+                <span className="text-text-secondary font-normal text-xs italic">Sin configurar</span>
+              )}
+            </div>
+            <button
+              onClick={handleStartEditInitial}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border-color text-xs text-text-secondary hover:text-text-primary transition-colors"
+            >
+              <Pencil size={11} />
+              Editar
+            </button>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3">
+            <span className="text-[10px] uppercase tracking-wider font-semibold text-text-secondary">Saldo inicial (de base)</span>
+            <div className="flex items-center gap-2">
+              {/* Toggle ARS / USD */}
+              <div className="flex rounded-lg border border-border-color overflow-hidden">
+                {(['ARS', 'USD'] as const).map(cur => (
+                  <button
+                    key={cur}
+                    onClick={() => setInitialCurrency(cur)}
+                    className={`px-3 py-1.5 text-xs font-medium transition-colors ${initialCurrency === cur ? 'bg-accent-blue text-white' : 'bg-bg-secondary text-text-secondary hover:text-text-primary'}`}
+                  >
+                    {cur}
+                  </button>
+                ))}
+              </div>
+
+              {/* Selector tipo de dólar (solo USD) */}
+              {initialCurrency === 'USD' && (
+                <select
+                  value={initialDollarType}
+                  onChange={e => setInitialDollarType(e.target.value)}
+                  className="px-2.5 py-1.5 rounded-lg border border-border-color bg-bg-secondary text-xs text-text-primary focus:outline-none focus:border-accent-blue"
+                >
+                  {dollarRates.map(r => (
+                    <option key={r.casa} value={r.casa}>
+                      {DOLLAR_LABELS[r.casa] ?? r.casa} (${formatARS(r.venta)})
+                    </option>
+                  ))}
+                </select>
+              )}
+
+              {/* Input monto */}
+              <input
+                ref={initialInputRef}
+                type="number"
+                min="0"
+                value={initialInput}
+                onChange={e => setInitialInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') handleSaveInitial(); if (e.key === 'Escape') handleCancelInitial(); }}
+                placeholder="0"
+                className="w-40 px-2.5 py-1.5 rounded-lg border border-accent-blue/40 bg-bg-secondary text-sm text-text-primary focus:outline-none focus:border-accent-blue tabular-nums"
+              />
+
+              {/* Preview de conversión */}
+              {initialCurrency === 'USD' && initialInput && (
+                <span className="text-xs text-text-secondary tabular-nums">
+                  ≈ ${formatARS(Math.round((parseFloat(initialInput) || 0) * (dollarRates.find(r => r.casa === initialDollarType)?.venta ?? 0)))} ARS
+                </span>
+              )}
+
+              <button
+                onClick={handleSaveInitial}
+                disabled={savingInitial}
+                className="w-7 h-7 rounded-lg bg-accent-green/15 text-accent-green hover:bg-accent-green/25 flex items-center justify-center transition-colors disabled:opacity-50"
+              >
+                <Check size={13} />
+              </button>
+              <button
+                onClick={handleCancelInitial}
+                className="w-7 h-7 rounded-lg bg-bg-secondary text-text-secondary hover:text-text-primary flex items-center justify-center transition-colors"
+              >
+                <X size={13} />
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Stat cards */}
       <div className="grid grid-cols-4 gap-3">
         <StatCard
           icon={<span className="text-lg">🐷</span>}
           label="Saldo neto"
           value={showUsd && currentRate ? fmtUSD(equivalentUsd) : `$${formatARS(totalSavings)}`}
-          sub={showUsd && currentRate ? `ARS: $${formatARS(totalSavings)}` : (totalUsd > 0 ? `+ ${fmtUSD(totalUsd)} guardados` : undefined)}
+          sub={(() => {
+            const meta = data?.initialBalanceMeta;
+            if (meta && meta.currency === 'USD') {
+              return `Incluye U$S ${meta.amount.toLocaleString('es-AR')} (${DOLLAR_LABELS[meta.dollarType ?? ''] ?? meta.dollarType}) de base`;
+            }
+            if (initialBalance > 0) return `Incluye $${formatARS(initialBalance)} ARS de base`;
+            if (showUsd && currentRate) return `ARS: $${formatARS(totalSavings)}`;
+            return totalUsd > 0 ? `+ ${fmtUSD(totalUsd)} guardados` : undefined;
+          })()}
           color="green"
         />
         <StatCard

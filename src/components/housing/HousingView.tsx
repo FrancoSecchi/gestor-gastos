@@ -29,6 +29,7 @@ import {
   fetchIPCAccumulated,
   getPendingAdjustments,
   fetchPendingAdjustments,
+  getAccumulatedRent,
 } from '../../lib/housingContract';
 import { formatARS } from '../../lib/export';
 
@@ -465,6 +466,7 @@ export const HousingView: React.FC<HousingViewProps> = ({ contract, loading, onS
   };
 
   const chartData = useMemo(() => contract ? buildChartData(contract) : [], [contract]);
+  const accumulatedRent = useMemo(() => contract ? getAccumulatedRent(contract) : 0, [contract]);
 
   // Detectar ajustes pendientes y estimar próximo aumento cuando cambia el contrato
   useEffect(() => {
@@ -738,6 +740,12 @@ export const HousingView: React.FC<HousingViewProps> = ({ contract, loading, onS
             <p className="text-xs text-text-secondary mt-1">por mes</p>
           </div>
           <div className="border-t border-border-color pt-3 space-y-2">
+            <div>
+              <p className="text-xs text-text-secondary">Acumulado pagado hasta hoy</p>
+              <p className="text-sm font-semibold text-accent-orange mt-0.5 tabular-nums">
+                ${formatARS(accumulatedRent)}
+              </p>
+            </div>
             <div>
               <p className="text-xs text-text-secondary">Próximo ajuste</p>
               <p className="text-sm font-semibold text-accent-blue mt-0.5">{nextDateFormatted}</p>

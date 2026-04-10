@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getAllTransactions, logError } from '../lib/db';
+import { getAllTransactions, getSetting, setSetting, logError } from '../lib/db';
 import { Transaction, Rule502030Group } from '../types';
 
 export type Rule502030Mapping = Record<Rule502030Group, string[]>;
@@ -17,10 +17,17 @@ export interface MonthlySavings {
   usd: number;          // USD depositado (amount_usd sum)
 }
 
+export interface InitialBalanceMeta {
+  currency: 'ARS' | 'USD';
+  amount: number;        // el valor tal como lo ingresó el usuario
+  dollarType?: string;   // 'blue', 'oficial', etc. — solo si currency === 'USD'
+  ars: number;           // equivalente ARS calculado al momento de guardar
+}
+
 export interface AhorrosData {
   monthly: MonthlySavings[];
   currentMonthData: MonthlySavings;
-  totalSavings: number;     // saldo neto (deposited - withdrawn, histórico)
+  totalSavings: number;     // saldo neto (deposited - withdrawn + initialBalance)
   totalDeposited: number;
   totalWithdrawn: number;
   totalUsd: number;
@@ -30,6 +37,8 @@ export interface AhorrosData {
   streakMonths: number;
   savingsCategories: string[];
   movements: Transaction[];  // todas las transacciones de ahorro/retiro
+  initialBalance: number;
+  initialBalanceMeta: InitialBalanceMeta | null;
 }
 
 const MONTH_NAMES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
@@ -58,7 +67,9 @@ function fillMonthRange(start: string, end: string): string[] {
 
 function computeAhorros(
   transactions: Transaction[],
-  savingsCategories: string[]
+  savingsCategories: string[],
+  initialBalance: number = 0,
+  initialBalanceMeta: InitialBalanceMeta | null = null
 ): AhorrosData {
   type MonthBucket = { deposited: number; withdrawn: number; income: number; usd: number };
   const byMonth: Record<string, MonthBucket> = {};
@@ -92,7 +103,7 @@ function computeAhorros(
   }
 
   const months = Object.keys(byMonth).sort();
-  let cumulative = 0;
+  let cumulative = initialBalance;
   let cumulativeUsd = 0;
 
   const monthly: MonthlySavings[] = months.map(month => {
@@ -118,7 +129,7 @@ function computeAhorros(
 
   const totalDeposited = monthly.reduce((s, m) => s + m.deposited, 0);
   const totalWithdrawn = monthly.reduce((s, m) => s + m.withdrawn, 0);
-  const totalSavings = totalDeposited - totalWithdrawn;
+  const totalSavings = totalDeposited - totalWithdrawn + initialBalance;
   const totalUsd = cumulativeUsd;
 
   const avgMonthlySavings = monthly.length > 0
@@ -162,8 +173,12 @@ function computeAhorros(
     streakMonths,
     savingsCategories,
     movements,
+    initialBalance,
+    initialBalanceMeta,
   };
 }
+
+const INITIAL_BALANCE_KEY = 'ahorros_initial_balance';
 
 export function useAhorros(mapping?: Rule502030Mapping | null) {
   const [data, setData] = useState<AhorrosData | null>(null);
@@ -177,8 +192,23 @@ export function useAhorros(mapping?: Rule502030Mapping | null) {
   const fetch = useCallback(async () => {
     setLoading(true);
     try {
-      const all = await getAllTransactions();
-      setData(computeAhorros(all, savingsCategories));
+      const [all, savedBalance] = await Promise.all([
+        getAllTransactions(),
+        getSetting(INITIAL_BALANCE_KEY),
+      ]);
+      let initialBalance = 0;
+      let initialBalanceMeta: InitialBalanceMeta | null = null;
+      if (savedBalance) {
+        try {
+          const parsed = JSON.parse(savedBalance) as InitialBalanceMeta;
+          initialBalanceMeta = parsed;
+          initialBalance = parsed.ars;
+        } catch {
+          // formato antiguo: número plano
+          initialBalance = parseFloat(savedBalance) || 0;
+        }
+      }
+      setData(computeAhorros(all, savingsCategories, initialBalance, initialBalanceMeta));
     } catch (e) {
       await logError('useAhorros', e);
       setError(e instanceof Error ? e.message : 'Error al cargar ahorros');
@@ -188,7 +218,14 @@ export function useAhorros(mapping?: Rule502030Mapping | null) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [savingsCategories.join(',')]);
 
+  const saveInitialBalance = useCallback(async (meta: InitialBalanceMeta) => {
+    await setSetting(INITIAL_BALANCE_KEY, JSON.stringify(meta));
+    await fetch();
+  }, [fetch]);
+
   useEffect(() => { fetch(); }, [fetch]);
 
-  return { data, loading, error, refresh: fetch };
+  return { data, loading, error, refresh: fetch, saveInitialBalance };
 }
+
+export type { InitialBalanceMeta };
