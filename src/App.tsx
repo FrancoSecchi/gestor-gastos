@@ -376,11 +376,7 @@ function AppInner() {
           {activeView === 'dashboard' && (
             <div className="flex flex-col gap-4 animate-fade-in">
               {/* Filters - Collapsible */}
-              <CollapsibleCard
-                title="Filtros"
-                isOpen={expandedCards.filters}
-                onToggle={() => toggleCard('filters')}
-              >
+              
                 <TransactionFilters
                   filters={filters}
                   dateRange={dateRange}
@@ -390,17 +386,12 @@ function AppInner() {
                   onCustomRange={setCustomRange}
                   onTypeFilter={setTypeFilter}
                   onCategoryFilter={setCategoryFilter}
-                />
-              </CollapsibleCard>
+                />              
 
               {/* Summary Cards - Collapsible */}
-              <CollapsibleCard
-                title="Resumen"
-                isOpen={expandedCards.summary}
-                onToggle={() => toggleCard('summary')}
-              >
-                <SummaryCards summary={summary} loading={loading} onOpenForm={handleOpenFormWithType} />
-              </CollapsibleCard>
+              
+              <SummaryCards summary={summary} loading={loading} onOpenForm={handleOpenFormWithType} />
+              
                             {/* Recurring Payments Widget - Collapsible */}
               {recurringPayments?.length > 0 && (                
                   <RecurringPaymentsWidget
