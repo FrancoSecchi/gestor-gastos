@@ -450,6 +450,11 @@ const ChartTooltip = ({ active, payload, label }: { active?: boolean; payload?: 
 
 // ── Vista principal ────────────────────────────────────────────────────────
 
+type EstimateResult =
+  | { kind: 'stable';   amount: number }
+  | { kind: 'adjusted'; amount: number; pct: number }
+  | { kind: 'fallback'; amount: number; reason: string };
+
 export const HousingView: React.FC<HousingViewProps> = ({ contract, loading, onSave, onDelete }) => {
   const [editing, setEditing] = useState(false);
   const [showAdjustForm, setShowAdjustForm] = useState(false);
@@ -457,8 +462,13 @@ export const HousingView: React.FC<HousingViewProps> = ({ contract, loading, onS
   const [pendingAdjustments, setPendingAdjustments] = useState<PendingAdjustment[]>([]);
   const [fetchingPending, setFetchingPending] = useState(false);
   const [pendingResult, setPendingResult] = useState<{ applied: number; failed: { date: string; error: string }[] } | null>(null);
-  const [nextEstimate, setNextEstimate] = useState<{ pct: number; amount: number } | null>(null);
+  const [nextEstimate, setNextEstimate] = useState<EstimateResult | null>(null);
   const [fetchingEstimate, setFetchingEstimate] = useState(false);
+  const [manualIndexValues, setManualIndexValues] = useState<Record<string, string>>({});
+  const [applyingManual, setApplyingManual] = useState<Record<string, boolean>>({});
+
+  // Solo los ajustes pendientes cuya fecha ya pasó (≤ hoy): los futuros no tienen datos disponibles
+  const pastPendingAdjustments = pendingAdjustments.filter(p => p.date <= today);
 
   const showMsg = (type: 'success' | 'error', text: string) => {
     setMessage({ type, text });
@@ -478,29 +488,47 @@ export const HousingView: React.FC<HousingViewProps> = ({ contract, loading, onS
     setPendingAdjustments(getPendingAdjustments(contract));
     setPendingResult(null);
 
-    // Estimar el próximo ajuste con el índice acumulado hasta hoy
+    // Estimar cuánto se pagará el próximo mes
     const fetchEstimate = async () => {
       setFetchingEstimate(true);
       setNextEstimate(null);
       try {
+        const nextAdjDate = getNextAdjustmentDate(contract);
+        const nextMonthStart = format(addMonths(new Date(), 1), 'yyyy-MM-01');
+        const currentAmount = getCurrentAmount(contract);
+
+        // Sin ajuste el próximo mes → el monto no cambia, no hace falta la API
+        if (nextAdjDate > nextMonthStart) {
+          setNextEstimate({ kind: 'stable', amount: currentAmount });
+          return;
+        }
+
+        // Ajuste pendiente para el próximo mes → intentar estimar con el índice
         const sorted = [...contract.adjustments].sort((a, b) => a.date.localeCompare(b.date));
         const lastDate = sorted.length > 0 ? sorted[sorted.length - 1].date : contract.startDate;
         const periodFrom = format(parseISO(lastDate), 'yyyy-MM');
         const periodTo = format(new Date(), 'yyyy-MM');
-        if (periodFrom > periodTo) return; // período aún no comenzó
-        let indexValue: number;
-        if (contract.indexType === 'IPC') {
-          indexValue = await fetchIPCAccumulated(periodFrom, periodTo);
-        } else {
-          indexValue = await fetchICLValue();
+
+        // IPC mismo mes: el período aún no tiene datos completos
+        if (contract.indexType === 'IPC' && periodFrom === periodTo) {
+          setNextEstimate({ kind: 'fallback', amount: currentAmount, reason: 'Datos del período aún no publicados' });
+          return;
         }
-        const estimatedAmount = calculateNewAmount(contract, indexValue);
-        const lastAmount = getLastAmount(contract);
-        const pct = ((estimatedAmount / lastAmount - 1) * 100);
-        setNextEstimate({ pct, amount: estimatedAmount });
-      } catch {
-        // La estimación es opcional; si falla no mostramos nada
-        setNextEstimate(null);
+
+        try {
+          let indexValue: number;
+          if (contract.indexType === 'IPC') {
+            indexValue = await fetchIPCAccumulated(periodFrom, periodTo);
+          } else {
+            indexValue = await fetchICLValue();
+          }
+          const estimatedAmount = calculateNewAmount(contract, indexValue);
+          const lastAmount = getLastAmount(contract);
+          const pct = (estimatedAmount / lastAmount - 1) * 100;
+          setNextEstimate({ kind: 'adjusted', amount: estimatedAmount, pct });
+        } catch {
+          setNextEstimate({ kind: 'fallback', amount: currentAmount, reason: 'Estimación no disponible' });
+        }
       } finally {
         setFetchingEstimate(false);
       }
@@ -535,7 +563,34 @@ export const HousingView: React.FC<HousingViewProps> = ({ contract, loading, onS
 
   const handleFetchPending = () => {
     if (!contract) return;
-    applyPending(contract, pendingAdjustments);
+    applyPending(contract, pastPendingAdjustments);
+  };
+
+  const handleApplyManual = async (pending: PendingAdjustment, indexValueStr: string) => {
+    if (!contract) return;
+    const indexValue = parseFloat(indexValueStr);
+    if (!indexValue || indexValue <= 0) return;
+
+    setApplyingManual(prev => ({ ...prev, [pending.date]: true }));
+    try {
+      const amount = calculateNewAmount(contract, indexValue);
+      const adj: HousingAdjustment = { date: pending.date, indexValue, amount };
+      const updated: HousingContract = {
+        ...contract,
+        adjustments: [...contract.adjustments, adj].sort((a, b) => a.date.localeCompare(b.date)),
+      };
+      await onSave(updated);
+      setPendingResult(prev => prev
+        ? { ...prev, failed: prev.failed.filter(f => f.date !== pending.date), applied: prev.applied + 1 }
+        : null
+      );
+      setManualIndexValues(prev => { const next = { ...prev }; delete next[pending.date]; return next; });
+      showMsg('success', 'Ajuste aplicado manualmente');
+    } catch (e) {
+      showMsg('error', e instanceof Error ? e.message : 'Error al aplicar');
+    } finally {
+      setApplyingManual(prev => ({ ...prev, [pending.date]: false }));
+    }
   };
 
   const currentAmount = contract ? getCurrentAmount(contract) : 0;
@@ -625,8 +680,6 @@ export const HousingView: React.FC<HousingViewProps> = ({ contract, loading, onS
   }
 
   // ── Vista principal con contrato activo ───────────────────────────────
-  const today = format(new Date(), 'yyyy-MM-dd');
-  const todayForChart = today;
 
   return (
     <div className="flex flex-col gap-5">
@@ -664,16 +717,16 @@ export const HousingView: React.FC<HousingViewProps> = ({ contract, loading, onS
         </div>
       )}
 
-      {/* Banner ajustes pendientes */}
-      {pendingAdjustments.length > 0 && !pendingResult && (
+      {/* Banner ajustes pendientes — solo para fechas pasadas (≤ hoy) */}
+      {pastPendingAdjustments.length > 0 && !pendingResult && (
         <div className="flex items-center justify-between gap-3 px-4 py-3 bg-accent-blue/8 border border-accent-blue/20 rounded-xl animate-fade-in">
           <div className="flex items-center gap-2 text-xs">
             <AlertCircle size={13} className="text-accent-blue shrink-0" />
             <span className="text-text-secondary">
-              {pendingAdjustments.length === 1
-                ? `Hay 1 ajuste sin registrar (${format(parseISO(pendingAdjustments[0].date), "MMM yyyy", { locale: es })})`
-                : `Hay ${pendingAdjustments.length} ajustes sin registrar`}
-              {' '}— se puede obtener el IPC automáticamente.
+              {pastPendingAdjustments.length === 1
+                ? `Hay 1 ajuste sin registrar (${format(parseISO(pastPendingAdjustments[0].date), "MMM yyyy", { locale: es })})`
+                : `Hay ${pastPendingAdjustments.length} ajustes sin registrar`}
+              {' '}— se puede obtener el {contract.indexType} automáticamente.
             </span>
           </div>
           <button
@@ -689,19 +742,53 @@ export const HousingView: React.FC<HousingViewProps> = ({ contract, loading, onS
 
       {/* Resultado del fetch de pendientes */}
       {pendingResult && pendingResult.failed.length > 0 && (
-        <div className="px-4 py-3 bg-accent-red/8 border border-accent-red/20 rounded-xl text-xs space-y-1 animate-fade-in">
+        <div className="px-4 py-3 bg-accent-red/8 border border-accent-red/20 rounded-xl text-xs space-y-3 animate-fade-in">
           {pendingResult.applied > 0 && (
             <p className="text-accent-green flex items-center gap-1.5">
               <CheckCircle size={12} />
               {pendingResult.applied} ajuste{pendingResult.applied > 1 ? 's' : ''} aplicado{pendingResult.applied > 1 ? 's' : ''}
             </p>
           )}
-          {pendingResult.failed.map(f => (
-            <p key={f.date} className="text-accent-red flex items-center gap-1.5">
-              <AlertCircle size={12} className="shrink-0" />
-              {format(parseISO(f.date), "MMM yyyy", { locale: es })}: {f.error}
-            </p>
-          ))}
+          {pendingResult.failed.map(f => {
+            const pendingAdj = pendingAdjustments.find(p => p.date === f.date);
+            return (
+              <div key={f.date} className="space-y-2">
+                <p className="text-accent-red flex items-center gap-1.5">
+                  <AlertCircle size={12} className="shrink-0" />
+                  {format(parseISO(f.date), "MMM yyyy", { locale: es })}: {f.error}
+                </p>
+                {pendingAdj && (
+                  <div className="flex items-center gap-2 ml-4">
+                    <span className="text-text-secondary shrink-0">Ingresar manualmente:</span>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={manualIndexValues[f.date] ?? ''}
+                        onChange={e => setManualIndexValues(prev => ({
+                          ...prev,
+                          [f.date]: e.target.value.replace(/[^0-9.]/g, ''),
+                        }))}
+                        placeholder={contract.indexType === 'IPC' ? 'Ej: 2.9' : 'Ej: 3420.50'}
+                        className="w-28 bg-bg-secondary border border-border-color rounded-lg px-2.5 py-1.5 text-xs text-text-primary focus:outline-none focus:border-accent-blue placeholder-text-secondary"
+                      />
+                      {contract.indexType === 'IPC' && (
+                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-text-secondary text-xs">%</span>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => handleApplyManual(pendingAdj, manualIndexValues[f.date] ?? '')}
+                      disabled={!manualIndexValues[f.date] || applyingManual[f.date]}
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-accent-blue text-white hover:bg-blue-500 transition-colors disabled:opacity-50"
+                    >
+                      {applyingManual[f.date] ? <Loader2 size={10} className="animate-spin" /> : <CheckCircle size={10} />}
+                      Aplicar
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -750,26 +837,46 @@ export const HousingView: React.FC<HousingViewProps> = ({ contract, loading, onS
               <p className="text-xs text-text-secondary">Próximo ajuste</p>
               <p className="text-sm font-semibold text-accent-blue mt-0.5">{nextDateFormatted}</p>
             </div>
-            {/* Estimación basada en índice acumulado hasta hoy */}
+            {/* Estimación próximo mes */}
             <div>
-              <p className="text-xs text-text-secondary">Estimación al próximo ajuste</p>
+              <p className="text-xs text-text-secondary">
+                {nextEstimate?.kind === 'stable' ? 'Próximo mes (sin ajuste)' : 'Estimación próximo mes'}
+              </p>
               {fetchingEstimate ? (
                 <p className="text-xs text-text-secondary mt-0.5 flex items-center gap-1">
                   <Loader2 size={10} className="animate-spin" /> Calculando…
                 </p>
-              ) : nextEstimate ? (
-                <p className="text-sm font-semibold text-accent-purple mt-0.5 tabular-nums">
-                  ${formatARS(nextEstimate.amount)}
-                  <span className="ml-2 text-xs font-medium text-accent-green">
-                    +{nextEstimate.pct.toFixed(1)}%
-                  </span>
-                </p>
-              ) : (
-                <p className="text-xs text-text-secondary/60 mt-0.5 italic">Sin datos aún</p>
-              )}
-              <p className="text-xs text-text-secondary/50 mt-0.5">
-                Basado en {contract.indexType} acumulado hasta hoy
-              </p>
+              ) : nextEstimate?.kind === 'adjusted' ? (
+                <>
+                  <p className="text-sm font-semibold text-accent-purple mt-0.5 tabular-nums">
+                    ${formatARS(nextEstimate.amount)}
+                    <span className="ml-2 text-xs font-medium text-accent-green">
+                      +{nextEstimate.pct.toFixed(1)}%
+                    </span>
+                  </p>
+                  <p className="text-xs text-text-secondary/50 mt-0.5">
+                    Basado en {contract.indexType} acumulado hasta hoy
+                  </p>
+                </>
+              ) : nextEstimate?.kind === 'stable' ? (
+                <>
+                  <p className="text-sm font-semibold text-text-primary mt-0.5 tabular-nums">
+                    ${formatARS(nextEstimate.amount)}
+                  </p>
+                  <p className="text-xs text-text-secondary/50 mt-0.5">
+                    Sin ajuste previsto el próximo mes
+                  </p>
+                </>
+              ) : nextEstimate?.kind === 'fallback' ? (
+                <>
+                  <p className="text-sm font-semibold text-text-primary mt-0.5 tabular-nums">
+                    ${formatARS(nextEstimate.amount)}
+                  </p>
+                  <p className="text-xs text-text-secondary/50 mt-0.5 italic">
+                    {nextEstimate.reason}
+                  </p>
+                </>
+              ) : null}
             </div>
           </div>
         </div>
@@ -810,7 +917,7 @@ export const HousingView: React.FC<HousingViewProps> = ({ contract, loading, onS
               />
               <Tooltip content={<ChartTooltip />} />
               <ReferenceLine
-                x={todayForChart}
+                x={today}
                 stroke="#3b82f6"
                 strokeDasharray="4 4"
                 strokeOpacity={0.5}
