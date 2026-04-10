@@ -403,12 +403,7 @@ function AppInner() {
                 <SummaryCards summary={summary} loading={loading} onOpenForm={handleOpenFormWithType} />
               </CollapsibleCard>
                             {/* Recurring Payments Widget - Collapsible */}
-              {recurringPayments?.length > 0 && (
-                <CollapsibleCard
-                  title="Pagos Recurrentes"
-                  isOpen={expandedCards.recurring}
-                  onToggle={() => toggleCard('recurring')}
-                >
+              {recurringPayments?.length > 0 && (                
                   <RecurringPaymentsWidget
                     recurringPayments={recurringPayments}
                     currentMonthTransactions={currentMonthTransactions}
@@ -417,7 +412,7 @@ function AppInner() {
                     onDeleteRecurring={removeRecurring}
                     onToggleRecurring={toggleRecurring}
                   />
-                </CollapsibleCard>
+                
               )}
 
 
