@@ -53,7 +53,14 @@ pub fn run() {
         )
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .invoke_handler(tauri::generate_handler![
+            commands::receipts::copy_to_receipts,
+            commands::receipts::delete_receipt,
+            commands::receipts::get_receipt_path,
+            commands::receipts::read_receipt_as_data_url,
+        ])
         .setup(move |app| {
             app.global_shortcut().on_shortcut(f11, move |app, _shortcut, event| {
                 if event.state == ShortcutState::Pressed {

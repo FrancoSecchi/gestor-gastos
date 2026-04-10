@@ -9,6 +9,7 @@
     "sql:allow-select",
     "sql:allow-load",
     "http:default",
-    "shell:allow-open"
+    "shell:allow-open",
+    "dialog:allow-open"
   ]
 }
