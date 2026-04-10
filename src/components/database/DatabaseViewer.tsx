@@ -4,6 +4,7 @@ import { getTableRows, getTableCount, DbTable } from '../../lib/db';
 
 const TABLES: { id: DbTable; label: string; description: string }[] = [
   { id: 'transactions', label: 'Transacciones', description: 'Todos los movimientos registrados' },
+  { id: 'recurring_payments', label: 'Pagos recurrentes', description: 'Plantillas de pagos recurrentes' },
   { id: 'settings', label: 'Configuración', description: 'Clave-valor de ajustes de la app' },
   { id: 'error_logs', label: 'Error logs', description: 'Historial de errores internos' },
 ];

@@ -1,10 +1,11 @@
-import React, { useState, useCallback, Component, ErrorInfo, ReactNode } from 'react';
+import React, { useState, useCallback, useEffect, Component, ErrorInfo, ReactNode } from 'react';
 import { Sidebar, ActiveView } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
 import { SummaryCards } from './components/dashboard/SummaryCards';
 import { ExpenseChart } from './components/dashboard/ExpenseChart';
 import { Rule502030 } from './components/dashboard/Rule502030';
 import { DollarRate } from './components/dashboard/DollarRate';
+import { RecurringPaymentsWidget } from './components/dashboard/RecurringPaymentsWidget';
 import { TransactionFilters } from './components/transactions/TransactionFilters';
 import { TransactionList } from './components/transactions/TransactionList';
 import { TransactionForm } from './components/transactions/TransactionForm';
@@ -17,12 +18,13 @@ import { HousingView } from './components/housing/HousingView';
 import { AhorrosView } from './components/ahorros/AhorrosView';
 import { ToastProvider, useToast } from './components/ui/Toast';
 import { useTransactions } from './hooks/useTransactions';
+import { useRecurringPayments } from './hooks/useRecurringPayments';
 import { deleteReceiptFile } from './lib/receiptUtils';
 import { useDollarRate } from './hooks/useDollarRate';
 import { useFilters } from './hooks/useFilters';
-import { Transaction, NewTransaction } from './types';
+import { Transaction, NewTransaction, RecurringPayment, RecurrenceFrequency, RECURRENCE_LABELS } from './types';
 import { exportToExcel, exportForClaude } from './lib/export';
-import { getReadableError, logError } from './lib/db';
+import { getReadableError, logError, getTransactions, createRecurringPayment } from './lib/db';
 import { calculateRule502030 } from './lib/rule502030';
 import {
   getDefaultRule502030Mapping,
@@ -32,6 +34,8 @@ import { useCustomCategories } from './hooks/useCustomCategories';
 import { useRule502030Mapping } from './hooks/useRule502030Mapping';
 import { useCategoryIcons } from './hooks/useCategoryIcons';
 import { useHousingContract } from './hooks/useHousingContract';
+import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { ChevronDown } from 'lucide-react';
 
 const VIEW_TITLES: Record<ActiveView, string> = {
   dashboard: 'Dashboard',
@@ -44,6 +48,40 @@ const VIEW_TITLES: Record<ActiveView, string> = {
   settings: 'Configuración',
   database: 'Base de datos',
 };
+
+// Collapsible card component for dashboard
+interface CollapsibleCardProps {
+  title: string;
+  isOpen: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}
+
+const CollapsibleCard: React.FC<CollapsibleCardProps> = ({ title, isOpen, onToggle, children }) => (
+  <div className="border border-border-color rounded-xl bg-bg-card overflow-hidden">
+    <button
+      onClick={onToggle}
+      className="w-full flex items-center justify-between px-5 py-3 hover:bg-bg-secondary/50 transition-colors"
+    >
+      <h3 className="font-semibold text-text-primary text-sm">{title}</h3>
+      <ChevronDown
+        size={16}
+        className={`text-text-secondary transition-transform duration-200 ${
+          isOpen ? 'transform rotate-180' : ''
+        }`}
+      />
+    </button>
+    <div
+      className="overflow-hidden transition-all duration-200"
+      style={{
+        maxHeight: isOpen ? '1000px' : '0',
+        opacity: isOpen ? 1 : 0,
+      }}
+    >
+      <div className="px-5 py-4 border-t border-border-color/30">{children}</div>
+    </div>
+  </div>
+);
 
 class HousingErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error: string }> {
   constructor(props: { children: ReactNode }) {
@@ -80,6 +118,22 @@ function AppInner() {
   const [showForm, setShowForm] = useState(false);
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
   const [formInitialType, setFormInitialType] = useState<'income' | 'expense' | undefined>(undefined);
+  const [recurringTemplate, setRecurringTemplate] = useState<RecurringPayment | null>(null);
+
+  // Dashboard collapsible cards state
+  const [expandedCards, setExpandedCards] = useState<Record<string, boolean>>({
+    filters: true,
+    summary: true,
+    charts: true,
+    recurring: true,
+  });
+
+  const toggleCard = (cardId: string) => {
+    setExpandedCards(prev => ({ ...prev, [cardId]: !prev[cardId] }));
+  };
+
+  // Current month transactions for the recurring payments widget
+  const [currentMonthTransactions, setCurrentMonthTransactions] = useState<Transaction[]>([]);
 
   const { filters, dateRange, setDateFilter, setCustomRange, setTypeFilter, setCategoryFilter } = useFilters();
   const { transactions, summary, loading, addTransaction, editTransaction, removeTransaction, clearDatabase, refresh: refreshTransactions } = useTransactions(
@@ -102,6 +156,19 @@ function AppInner() {
   } = useCustomCategories();
   const { icons: categoryIcons, setIcon: setCategoryIcon } = useCategoryIcons();
   const { contract: housingContract, loading: housingLoading, save: saveHousingContract, remove: removeHousingContract } = useHousingContract();
+  const { recurringPayments, refresh: refreshRecurring, toggleRecurring, removeRecurring } = useRecurringPayments();
+
+  const refreshCurrentMonthTransactions = useCallback(async () => {
+    const now = new Date();
+    const start = format(startOfMonth(now), 'yyyy-MM-dd');
+    const end = format(endOfMonth(now), 'yyyy-MM-dd');
+    const txs = await getTransactions(start, end);
+    setCurrentMonthTransactions(txs);
+  }, []);
+
+  useEffect(() => {
+    refreshCurrentMonthTransactions();
+  }, [refreshCurrentMonthTransactions]);
 
   const {
     mapping: rule502030Mapping,
@@ -139,22 +206,67 @@ function AppInner() {
     [renameCustomIncomeCategory, refreshTransactions, dateRange.start, dateRange.end]
   );
 
-  const handleSaveTransaction = useCallback(async (tx: NewTransaction | Transaction) => {
+  const handleSaveTransaction = useCallback(async (tx: NewTransaction | Transaction, recurringFrequency?: RecurrenceFrequency) => {
     const isEdit = 'id' in tx;
     try {
       if (isEdit) {
-        await editTransaction(tx as Transaction);
+        let txToEdit = tx as Transaction;
+        if (recurringFrequency && !txToEdit.recurring_id) {
+          // Se activó recurrente al editar — crear el recurrente y linkear
+          const recurring = await createRecurringPayment({
+            type: txToEdit.type,
+            amount: txToEdit.amount,
+            category: txToEdit.category,
+            subcategory: txToEdit.subcategory,
+            description: txToEdit.description,
+            frequency: recurringFrequency,
+          });
+          txToEdit = { ...txToEdit, recurring_id: recurring.id };
+        }
+        await editTransaction(txToEdit);
         toast.success('Transacción actualizada', 'Los cambios fueron guardados correctamente.');
       } else {
-        await addTransaction(tx as NewTransaction);
-        toast.success('Transacción agregada', `Se registró ${tx.type === 'income' ? 'el ingreso' : 'el gasto'} exitosamente.`);
+        let txToSave = tx as NewTransaction;
+        let createdRecurring = false;
+        if (recurringFrequency && !txToSave.recurring_id) {
+          // Create the recurring payment first, then link the transaction
+          const recurring = await createRecurringPayment({
+            type: txToSave.type,
+            amount: txToSave.amount,
+            category: txToSave.category,
+            subcategory: txToSave.subcategory,
+            description: txToSave.description,
+            frequency: recurringFrequency,
+          });
+          txToSave = { ...txToSave, recurring_id: recurring.id };
+          createdRecurring = true;
+          toast.success('Pago recurrente creado', `Se guardó como ${RECURRENCE_LABELS[recurringFrequency].toLowerCase()}.`);
+        }
+        await addTransaction(txToSave);
+        if (!recurringFrequency) {
+          toast.success('Transacción agregada', `Se registró ${tx.type === 'income' ? 'el ingreso' : 'el gasto'} exitosamente.`);
+        }
+        // Si se creó un pago recurrente, hacer refresh en paralelo de todo lo necesario
+        if (createdRecurring) {
+          await Promise.all([
+            refreshRecurring(),
+            refreshCurrentMonthTransactions(),
+            refreshTransactions(dateRange.start, dateRange.end),
+          ]);
+        } else {
+          await refreshCurrentMonthTransactions();
+        }
+      }
+      // Si fue edición sin crear recurrente, solo refrescar mes actual
+      if (isEdit) {
+        await refreshCurrentMonthTransactions();
       }
     } catch (err) {
       await logError('App.handleSaveTransaction', err);
       toast.error('Error al guardar', getReadableError(err));
       throw err;
     }
-  }, [addTransaction, editTransaction, toast]);
+  }, [addTransaction, editTransaction, toast, refreshRecurring, refreshCurrentMonthTransactions, refreshTransactions, dateRange.start, dateRange.end]);
 
   const handleEdit = useCallback((tx: Transaction) => {
     setEditingTx(tx);
@@ -175,6 +287,14 @@ function AppInner() {
     setShowForm(false);
     setEditingTx(null);
     setFormInitialType(undefined);
+    setRecurringTemplate(null);
+  }, []);
+
+  const handleRegisterRecurringPayment = useCallback((recurring: RecurringPayment) => {
+    setEditingTx(null);
+    setFormInitialType(undefined);
+    setRecurringTemplate(recurring);
+    setShowForm(true);
   }, []);
 
   const handleDelete = useCallback(async (id: string) => {
@@ -234,7 +354,6 @@ function AppInner() {
       toast.error('Error al exportar', 'No se pudo generar el archivo.');
     }
   }, [transactions, summary, dateRange, toast, effectiveRule502030Mapping]);
-
   return (
     <div className="flex h-full bg-bg-primary overflow-hidden">
       <Sidebar
@@ -256,52 +375,93 @@ function AppInner() {
 
         <main className="flex-1 overflow-y-auto p-5">
           {activeView === 'dashboard' && (
-            <div className="flex flex-col gap-4 h-full animate-fade-in">
-              {/* Filters */}
-              <TransactionFilters
-                filters={filters}
-                dateRange={dateRange}
-                expenseCategories={expenseCategories}
-                incomeCategories={incomeCategories}
-                onDateFilter={setDateFilter}
-                onCustomRange={setCustomRange}
-                onTypeFilter={setTypeFilter}
-                onCategoryFilter={setCategoryFilter}
-              />
+            <div className="flex flex-col gap-4 animate-fade-in">
+              {/* Filters - Collapsible */}
+              <CollapsibleCard
+                title="Filtros"
+                isOpen={expandedCards.filters}
+                onToggle={() => toggleCard('filters')}
+              >
+                <TransactionFilters
+                  filters={filters}
+                  dateRange={dateRange}
+                  expenseCategories={expenseCategories}
+                  incomeCategories={incomeCategories}
+                  onDateFilter={setDateFilter}
+                  onCustomRange={setCustomRange}
+                  onTypeFilter={setTypeFilter}
+                  onCategoryFilter={setCategoryFilter}
+                />
+              </CollapsibleCard>
 
-              {/* Summary cards */}
-              <SummaryCards summary={summary} loading={loading} onOpenForm={handleOpenFormWithType} />
+              {/* Summary Cards - Collapsible */}
+              <CollapsibleCard
+                title="Resumen"
+                isOpen={expandedCards.summary}
+                onToggle={() => toggleCard('summary')}
+              >
+                <SummaryCards summary={summary} loading={loading} onOpenForm={handleOpenFormWithType} />
+              </CollapsibleCard>
+                            {/* Recurring Payments Widget - Collapsible */}
+              {recurringPayments?.length > 0 && (
+                <CollapsibleCard
+                  title="Pagos Recurrentes"
+                  isOpen={expandedCards.recurring}
+                  onToggle={() => toggleCard('recurring')}
+                >
+                  <RecurringPaymentsWidget
+                    recurringPayments={recurringPayments}
+                    currentMonthTransactions={currentMonthTransactions}
+                    categoryIcons={categoryIcons}
+                    onRegisterPayment={handleRegisterRecurringPayment}
+                    onDeleteRecurring={removeRecurring}
+                    onToggleRecurring={toggleRecurring}
+                  />
+                </CollapsibleCard>
+              )}
 
-              {/* Charts + Rule 502030 + Dollar */}
-              <div className="grid grid-cols-3 gap-4">
-                <div className="col-span-2">
-                  <ExpenseChart
-                    transactions={transactions}
-                    byCategory={summary?.by_category ?? []}
-                  />
+
+              {/* Charts + Rule 502030 + Dollar - Collapsible */}
+              <CollapsibleCard
+                title="Gráficos y Análisis"
+                isOpen={expandedCards.charts}
+                onToggle={() => toggleCard('charts')}
+              >
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="col-span-2">
+                    <ExpenseChart
+                      transactions={transactions}
+                      byCategory={summary?.by_category ?? []}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-4">
+                    <Rule502030
+                      transactions={transactions}
+                      totalIncome={summary?.total_income ?? 0}
+                      mapping={effectiveRule502030Mapping}
+                      startDate={dateRange.start}
+                      endDate={dateRange.end}
+                    />
+                    <DollarRate
+                      rates={rates}
+                      loading={dollarLoading}
+                      error={dollarError}
+                      lastUpdate={lastUpdate}
+                      onRefresh={refreshDollar}
+                    />
+                  </div>
                 </div>
-                <div className="flex flex-col gap-4">
-                  <Rule502030
-                    transactions={transactions}
-                    totalIncome={summary?.total_income ?? 0}
-                    mapping={effectiveRule502030Mapping}
-                    startDate={dateRange.start}
-                    endDate={dateRange.end}
-                  />
-                  <DollarRate
-                    rates={rates}
-                    loading={dollarLoading}
-                    error={dollarError}
-                    lastUpdate={lastUpdate}
-                    onRefresh={refreshDollar}
-                  />
-                </div>
-              </div>
+              </CollapsibleCard>
+
+
+              
+              {/* Extra space for scrolling */}
+              <div className="h-4" />
             </div>
           )}
 
           {activeView === 'transactions' && (
-            <div className="flex flex-col gap-4 h-full animate-fade-in">
+            <div className="flex flex-col gap-4 animate-fade-in">
               <TransactionFilters
                 filters={filters}
                 dateRange={dateRange}
@@ -438,6 +598,8 @@ function AppInner() {
         <TransactionForm
           transaction={editingTx}
           initialType={formInitialType}
+          recurringTemplate={recurringTemplate}
+          recurringPayments={recurringPayments}
           expenseCategories={expenseCategories}
           incomeCategories={incomeCategories}
           categoryIcons={categoryIcons}

@@ -1,5 +1,35 @@
 export type TransactionType = 'expense' | 'income';
 export type TransactionSubtype = 'transfer_to_savings' | 'transfer_from_savings';
+export type RecurrenceFrequency = 'monthly' | 'bimonthly' | 'quarterly' | 'semiannual' | 'annual';
+
+export const RECURRENCE_LABELS: Record<RecurrenceFrequency, string> = {
+  monthly: 'Mensual',
+  bimonthly: 'Bimestral',
+  quarterly: 'Trimestral',
+  semiannual: 'Semestral',
+  annual: 'Anual',
+};
+
+export interface RecurringPayment {
+  id: string;
+  type: TransactionType;
+  amount: number;
+  category: string;
+  subcategory?: string | null;
+  description?: string | null;
+  frequency: RecurrenceFrequency;
+  is_active: number;
+  created_at: string;
+}
+
+export interface NewRecurringPayment {
+  type: TransactionType;
+  amount: number;
+  category: string;
+  subcategory?: string | null;
+  description?: string | null;
+  frequency: RecurrenceFrequency;
+}
 
 export type ExpenseCategory =
   | 'Vivienda'
@@ -37,6 +67,7 @@ export interface Transaction {
   receipt_path?: string | null;
   date: string;
   created_at: string;
+  recurring_id?: string | null;
 }
 
 export interface NewTransaction {
@@ -50,6 +81,7 @@ export interface NewTransaction {
   description?: string | null;
   receipt_path?: string | null;
   date: string;
+  recurring_id?: string | null;
 }
 
 export interface CategorySummary {

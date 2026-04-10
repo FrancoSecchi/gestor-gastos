@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { X, Save, Plus, Eye, Calendar, Paperclip, FileX } from 'lucide-react';
+import { X, Save, Plus, Eye, Calendar, Paperclip, FileX, RefreshCw } from 'lucide-react';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import { copyReceiptFile, deleteReceiptFile } from '../../lib/receiptUtils';
 import { DatePicker } from '../ui/DatePicker';
-import { Transaction, NewTransaction, TransactionType, DollarRate, getCategoryColor } from '../../types';
+import { Transaction, NewTransaction, TransactionType, DollarRate, getCategoryColor, RecurrenceFrequency, RECURRENCE_LABELS, RecurringPayment } from '../../types';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { formatARS } from '../../lib/export';
@@ -14,13 +14,16 @@ const SAVINGS_CATEGORIES = ['Ahorro', 'Inversión'];
 interface TransactionFormProps {
   transaction?: Transaction | null;
   initialType?: 'income' | 'expense';
+  /** Pre-fill form from a recurring payment template (for "Registrar pago" flow) */
+  recurringTemplate?: { id: string; type: TransactionType; amount: number; category: string; subcategory?: string | null; description?: string | null } | null;
+  recurringPayments?: RecurringPayment[];
   expenseCategories: string[];
   incomeCategories: string[];
   categoryIcons: Record<string, string>;
   housingContract?: HousingContract | null;
   dollarRates?: DollarRate[];
   onAddCustomCategory: (type: TransactionType, name: string) => Promise<void>;
-  onSave: (tx: NewTransaction | Transaction) => Promise<void>;
+  onSave: (tx: NewTransaction | Transaction, recurringFrequency?: RecurrenceFrequency) => Promise<void>;
   onClose: () => void;
 }
 
@@ -44,6 +47,8 @@ function formatAmountDisplay(value: number): string {
 export const TransactionForm: React.FC<TransactionFormProps> = ({
   transaction,
   initialType,
+  recurringTemplate,
+  recurringPayments = [],
   expenseCategories,
   incomeCategories,
   categoryIcons,
@@ -66,6 +71,9 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
   // Receipt state
   const [pendingFilePath, setPendingFilePath] = useState<string | null>(null); // ruta local seleccionada
   const [removeReceipt, setRemoveReceipt] = useState(false); // si el usuario quiere quitar el comprobante existente
+  // Recurring state
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [recurringFrequency, setRecurringFrequency] = useState<RecurrenceFrequency>('monthly');
   const amountRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -85,9 +93,10 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
         subcategory: transaction.subcategory ?? null,
         description: transaction.description ?? '',
         date: transaction.date,
+        recurring_id: transaction.recurring_id ?? null,
       });
       setAmountInput(transaction.amount > 0 ? String(transaction.amount) : '');
-      
+
       // Determinar formMode si es una transacción de ahorro
       if (transaction.subtype === 'transfer_to_savings') {
         setFormMode('transfer');
@@ -100,15 +109,38 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
       } else {
         setFormMode('income');
       }
+      // Si la transacción ya está linkeada a un recurrente, mostrarlo activado
+      if (transaction.recurring_id) {
+        setIsRecurring(true);
+        const linked = recurringPayments.find(r => r.id === transaction.recurring_id);
+        if (linked) setRecurringFrequency(linked.frequency);
+      } else {
+        setIsRecurring(false);
+      }
+    } else if (recurringTemplate) {
+      // Pre-fill from recurring template (registrar pago)
+      setForm({
+        ...defaultForm,
+        type: recurringTemplate.type,
+        amount: recurringTemplate.amount,
+        category: recurringTemplate.category,
+        subcategory: recurringTemplate.subcategory ?? null,
+        description: recurringTemplate.description ?? '',
+        recurring_id: recurringTemplate.id,
+      });
+      setAmountInput(recurringTemplate.amount > 0 ? String(recurringTemplate.amount) : '');
+      setFormMode(recurringTemplate.type === 'income' ? 'income' : 'expense');
+      setIsRecurring(false);
     } else {
       setForm({ ...defaultForm, type: initialType ?? 'expense' });
       setAmountInput('');
       setFormMode(initialType ?? 'expense');
       setTransferMode('deposit');
+      setIsRecurring(false);
     }
     setPendingFilePath(null);
     setRemoveReceipt(false);
-  }, [transaction]);
+  }, [transaction, recurringTemplate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     amountRef.current?.focus();
@@ -269,9 +301,18 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
 
       const payload = { ...form, receipt_path: receiptPath };
       if (transaction) {
-        await onSave({ ...transaction, ...payload });
+        let finalPayload = { ...transaction, ...payload };
+        // Si se activó recurrente en edición y no estaba linkeado, pasar frecuencia para crear el recurrente
+        const needsNewRecurring = isRecurring && !finalPayload.recurring_id;
+        // Si se desactivó recurrente en edición y estaba linkeado, deslinkar
+        if (!isRecurring && finalPayload.recurring_id) {
+          finalPayload = { ...finalPayload, recurring_id: null };
+        }
+        await onSave(finalPayload, needsNewRecurring ? recurringFrequency : undefined);
       } else {
-        await onSave(payload);
+        // Si se marcó como recurrente en creación y no viene con recurring_id ya seteado
+        const freq = isRecurring && !payload.recurring_id ? recurringFrequency : undefined;
+        await onSave(payload, freq);
       }
       onClose();
     } catch (err) {
@@ -303,14 +344,14 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
     >
       <div
         className={`
-          bg-bg-card border border-border-color rounded-2xl w-full max-w-md shadow-2xl
-          transition-all duration-300
+          bg-bg-card border border-border-color rounded-2xl w-full max-w-4xl shadow-2xl
+          transition-all duration-300 flex flex-col max-h-[90vh] overflow-hidden
           ${mounted ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-4 scale-95'}
         `}
       >
         {/* Header */}
         <div className={`
-          flex items-center justify-between px-5 py-4 border-b border-border-color rounded-t-2xl
+          flex items-center justify-between px-5 py-4 border-b border-border-color flex-shrink-0
           ${formMode === 'income'
             ? 'bg-gradient-to-r from-accent-green/5 to-transparent'
             : formMode === 'transfer'
@@ -349,7 +390,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
 
         {/* Preview panel */}
         {showPreview && (
-          <div className="px-5 pt-3 pb-0 animate-fade-in">
+          <div className="px-5 pt-3 pb-0 animate-fade-in flex-shrink-0">
             <div className={`
               flex items-center gap-3 p-3 rounded-xl border
               ${formMode === 'income'
@@ -386,153 +427,344 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="p-5 space-y-4">
-          {/* Type */}
-          <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1.5 uppercase tracking-wider">Tipo</label>
-            <div className="grid grid-cols-3 gap-2">
-              {(['expense', 'income', 'transfer'] as const).map(mode => (
-                <button
-                  key={mode}
-                  type="button"
-                  onClick={() => handleFormModeChange(mode)}
-                  className={`
-                    py-2.5 rounded-xl text-sm font-semibold transition-all duration-200
-                    ${formMode === mode
-                      ? mode === 'expense'
-                        ? 'bg-accent-red/20 text-accent-red border border-accent-red/40 shadow-sm shadow-accent-red/10'
-                        : mode === 'income'
-                        ? 'bg-accent-green/20 text-accent-green border border-accent-green/40 shadow-sm shadow-accent-green/10'
-                        : 'bg-accent-blue/20 text-accent-blue border border-accent-blue/40 shadow-sm shadow-accent-blue/10'
-                      : 'bg-bg-secondary text-text-secondary border border-border-color hover:border-text-secondary/50'
-                    }
-                  `}
-                >
-                  {mode === 'expense' ? '↓ Gasto' : mode === 'income' ? '↑ Ingreso' : '↕ Ahorro'}
-                </button>
-              ))}
+        {/* Content: two columns layout */}
+        <form onSubmit={handleSubmit} className="flex-1 overflow-hidden flex flex-col lg:flex-row">
+          {/* LEFT COLUMN: form fields */}
+          <div className="flex-1 overflow-y-auto p-5 space-y-4 lg:border-r lg:border-border-color">
+            {/* Type */}
+            <div>
+              <label className="block text-xs font-medium text-text-secondary mb-1.5 uppercase tracking-wider">Tipo</label>
+              <div className="grid grid-cols-3 gap-2">
+                {(['expense', 'income', 'transfer'] as const).map(mode => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => handleFormModeChange(mode)}
+                    className={`
+                      py-2.5 rounded-xl text-sm font-semibold transition-all duration-200
+                      ${formMode === mode
+                        ? mode === 'expense'
+                          ? 'bg-accent-red/20 text-accent-red border border-accent-red/40 shadow-sm shadow-accent-red/10'
+                          : mode === 'income'
+                          ? 'bg-accent-green/20 text-accent-green border border-accent-green/40 shadow-sm shadow-accent-green/10'
+                          : 'bg-accent-blue/20 text-accent-blue border border-accent-blue/40 shadow-sm shadow-accent-blue/10'
+                        : 'bg-bg-secondary text-text-secondary border border-border-color hover:border-text-secondary/50'
+                      }
+                    `}
+                  >
+                    {mode === 'expense' ? '↓ Gasto' : mode === 'income' ? '↑ Ingreso' : '↕ Ahorro'}
+                  </button>
+                ))}
+              </div>
+
+              {/* Sub-toggle for transfer mode */}
+              {formMode === 'transfer' && (
+                <div className="mt-3 grid grid-cols-2 gap-2 p-3 bg-accent-blue/8 border border-accent-blue/20 rounded-xl animate-fade-in">
+                  <button
+                    type="button"
+                    onClick={() => handleTransferModeChange('deposit')}
+                    className={`
+                      py-2 rounded-lg text-xs font-semibold transition-all duration-200
+                      ${transferMode === 'deposit'
+                        ? 'bg-accent-blue text-white shadow-sm shadow-accent-blue/20'
+                        : 'bg-bg-secondary text-text-secondary border border-border-color hover:border-accent-blue/30 hover:text-text-primary'
+                      }
+                    `}
+                  >
+                    → Depositar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleTransferModeChange('withdraw')}
+                    className={`
+                      py-2 rounded-lg text-xs font-semibold transition-all duration-200
+                      ${transferMode === 'withdraw'
+                        ? 'bg-accent-blue text-white shadow-sm shadow-accent-blue/20'
+                        : 'bg-bg-secondary text-text-secondary border border-border-color hover:border-accent-blue/30 hover:text-text-primary'
+                      }
+                    `}
+                  >
+                    ← Retirar
+                  </button>
+                </div>
+              )}
             </div>
 
-            {/* Sub-toggle for transfer mode */}
-            {formMode === 'transfer' && (
-              <div className="mt-3 grid grid-cols-2 gap-2 p-3 bg-accent-blue/8 border border-accent-blue/20 rounded-xl animate-fade-in">
+            {/* Amount - prominent */}
+            <div>
+              <label className="block text-xs font-medium text-text-secondary mb-1.5 uppercase tracking-wider">
+                Monto (ARS) *
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary text-sm font-semibold">
+                  $
+                </span>
+                <input
+                  ref={amountRef}
+                  type="text"
+                  inputMode="decimal"
+                  value={amountInput}
+                  onChange={e => handleAmountChange(e.target.value)}
+                  placeholder="0"
+                  required
+                  className={`${inputClass} pl-7 text-lg font-bold tabular-nums`}
+                />
+                {form.amount > 0 && (
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-text-secondary">
+                    ${formatARS(form.amount)}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Sugerencia de monto para Vivienda */}
+            {form.type === 'expense' && form.category === 'Vivienda' && housingContract && (() => {
+              const suggested = getAmountForDate(housingContract, form.date || format(new Date(), 'yyyy-MM-dd'));
+              return (
+                <div className="flex items-center justify-between gap-3 px-3 py-2 bg-accent-blue/8 border border-accent-blue/20 rounded-xl animate-fade-in">
+                  <span className="text-xs text-text-secondary">
+                    Alquiler este mes: <span className="font-semibold text-text-primary">${formatARS(suggested)}</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAmountInput(String(suggested));
+                      setForm(prev => ({ ...prev, amount: suggested }));
+                    }}
+                    className="text-xs font-medium text-accent-blue hover:text-blue-400 transition-colors shrink-0"
+                  >
+                    Usar
+                  </button>
+                </div>
+              );
+            })()}
+
+            {/* Description */}
+            <div>
+              <label className="block text-xs font-medium text-text-secondary mb-1.5 uppercase tracking-wider">
+                Descripción
+              </label>
+              <input
+                type="text"
+                value={form.description ?? ''}
+                onChange={e => setForm(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="Opcional..."
+                className={inputClass}
+              />
+            </div>
+
+            {/* Date */}
+            <div>
+              <label className="block text-xs font-medium text-text-secondary mb-1.5 uppercase tracking-wider flex items-center gap-1">
+                <Calendar size={10} />
+                Fecha *
+              </label>
+              <DatePicker
+                value={form.date}
+                onChange={date => setForm(prev => ({ ...prev, date }))}
+                required
+                className={inputClass}
+              />
+            </div>
+
+            {/* Dollar type + USD amount — only shown for savings categories */}
+            {form.type === 'expense' && SAVINGS_CATEGORIES.includes(form.category) && (
+              <div className="space-y-2 p-3 bg-accent-green/5 border border-accent-green/20 rounded-xl animate-fade-in">
+                <label className="block text-xs font-semibold text-accent-green uppercase tracking-wider">
+                  Dólar utilizado <span className="normal-case font-normal text-text-secondary">(opcional)</span>
+                </label>
+                {dollarRates.length > 0 ? (
+                  <select
+                    value={form.dollar_type ?? ''}
+                    onChange={e => handleDollarTypeChange(e.target.value || null)}
+                    className={`${inputClass} text-sm`}
+                  >
+                    <option value="">Seleccionar dólar...</option>
+                    {dollarRates.map(rate => (
+                      <option key={rate.casa} value={rate.casa}>
+                        {rate.nombre.replace('Dólar ', '').replace('dólar ', '')} - ${formatARS(rate.venta)}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <p className="text-xs text-text-secondary">Cargando cotizaciones…</p>
+                )}
+                <div>
+                  <label className="block text-[10px] text-text-secondary mb-1 uppercase tracking-wider">
+                    Monto USD {form.dollar_type ? '(calculado automáticamente)' : '(manual)'}
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary text-sm font-semibold">U$S</span>
+                    <input
+                      type="number"
+                      value={form.amount_usd ?? ''}
+                      onChange={e => setForm(prev => ({
+                        ...prev,
+                        amount_usd: e.target.value ? parseFloat(e.target.value) : null,
+                      }))}
+                      placeholder="0.00"
+                      min="0"
+                      step="any"
+                      className={`${inputClass} pl-10`}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Recurrente — para transacciones nuevas y edición (no transfer, no desde template) */}
+            {!recurringTemplate && formMode !== 'transfer' && (
+              <div>
                 <button
                   type="button"
-                  onClick={() => handleTransferModeChange('deposit')}
+                  onClick={() => setIsRecurring(r => !r)}
                   className={`
-                    py-2 rounded-lg text-xs font-semibold transition-all duration-200
-                    ${transferMode === 'deposit'
-                      ? 'bg-accent-blue text-white shadow-sm shadow-accent-blue/20'
-                      : 'bg-bg-secondary text-text-secondary border border-border-color hover:border-accent-blue/30 hover:text-text-primary'
+                    w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl border transition-all duration-150 text-sm
+                    ${isRecurring
+                      ? 'bg-accent-blue/10 border-accent-blue/40 text-accent-blue'
+                      : 'bg-bg-secondary border-border-color text-text-secondary hover:border-text-secondary/50 hover:text-text-primary'
                     }
                   `}
                 >
-                  → Depositar
+                  <RefreshCw size={14} className={isRecurring ? 'text-accent-blue' : ''} />
+                  <span className="font-medium">Es un pago recurrente</span>
+                  <div className={`ml-auto w-8 h-4.5 rounded-full transition-all duration-200 flex items-center px-0.5 ${isRecurring ? 'bg-accent-blue' : 'bg-border-color'}`}>
+                    <div className={`w-3.5 h-3.5 rounded-full bg-white shadow transition-all duration-200 ${isRecurring ? 'translate-x-3.5' : 'translate-x-0'}`} />
+                  </div>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => handleTransferModeChange('withdraw')}
-                  className={`
-                    py-2 rounded-lg text-xs font-semibold transition-all duration-200
-                    ${transferMode === 'withdraw'
-                      ? 'bg-accent-blue text-white shadow-sm shadow-accent-blue/20'
-                      : 'bg-bg-secondary text-text-secondary border border-border-color hover:border-accent-blue/30 hover:text-text-primary'
-                    }
-                  `}
-                >
-                  ← Retirar
-                </button>
+
+                {isRecurring && (
+                  <div className="mt-2 p-3 bg-accent-blue/8 border border-accent-blue/20 rounded-xl animate-fade-in">
+                    <label className="block text-xs font-medium text-text-secondary mb-2 uppercase tracking-wider">
+                      Frecuencia
+                    </label>
+                    <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-5">
+                      {(Object.entries(RECURRENCE_LABELS) as [RecurrenceFrequency, string][]).map(([key, label]) => (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => setRecurringFrequency(key)}
+                          className={`
+                            py-1.5 px-2 rounded-lg text-xs font-medium transition-all duration-150
+                            ${recurringFrequency === key
+                              ? 'bg-accent-blue text-white shadow-sm'
+                              : 'bg-bg-secondary text-text-secondary border border-border-color hover:border-accent-blue/40 hover:text-text-primary'
+                            }
+                          `}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Badge cuando viene de un template recurrente */}
+            {recurringTemplate && (
+              <div className="flex items-center gap-2 px-3 py-2 bg-accent-blue/8 border border-accent-blue/20 rounded-xl text-xs text-accent-blue">
+                <RefreshCw size={12} />
+                <span>Registrando pago recurrente</span>
+              </div>
+            )}
+
+            {/* Comprobante */}
+            <div>
+              <label className="block text-xs font-medium text-text-secondary mb-1.5 uppercase tracking-wider">
+                Comprobante
+              </label>
+              {(() => {
+                const existingFilename = !removeReceipt ? (transaction?.receipt_path ?? null) : null;
+                const displayPath = pendingFilePath ?? (existingFilename ? existingFilename : null);
+
+                if (displayPath) {
+                  const name = displayPath.includes('/') || displayPath.includes('\\')
+                    ? displayPath.split(/[\\/]/).pop()!
+                    : displayPath;
+                  return (
+                    <div className="flex items-center gap-2 px-3 py-2 bg-accent-blue/8 border border-accent-blue/25 rounded-xl">
+                      <Paperclip size={13} className="text-accent-blue flex-shrink-0" />
+                      <span className="text-xs text-text-primary flex-1 truncate" title={name}>{name}</span>
+                      <button
+                        type="button"
+                        onClick={handlePickFile}
+                        className="text-xs text-text-secondary hover:text-accent-blue transition-colors shrink-0"
+                      >
+                        Cambiar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleRemoveReceipt}
+                        className="p-1 rounded-lg text-text-secondary hover:text-accent-red hover:bg-accent-red/10 transition-all"
+                      >
+                        <FileX size={13} />
+                      </button>
+                    </div>
+                  );
+                }
+
+                return (
+                  <button
+                    type="button"
+                    onClick={handlePickFile}
+                    className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl border border-dashed border-border-color text-text-secondary hover:border-accent-blue/50 hover:text-accent-blue hover:bg-accent-blue/5 transition-all duration-150 text-xs"
+                  >
+                    <Paperclip size={13} />
+                    Adjuntar comprobante (PDF, PNG, JPG)
+                  </button>
+                );
+              })()}
+            </div>
+
+            {error && (
+              <div className="text-xs text-accent-red bg-accent-red/10 border border-accent-red/25 rounded-xl px-3 py-2.5 animate-fade-in">
+                {error}
               </div>
             )}
           </div>
 
-          {/* Amount - prominent */}
-          <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1.5 uppercase tracking-wider">
-              Monto (ARS) *
-            </label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary text-sm font-semibold">
-                $
-              </span>
-              <input
-                ref={amountRef}
-                type="text"
-                inputMode="decimal"
-                value={amountInput}
-                onChange={e => handleAmountChange(e.target.value)}
-                placeholder="0"
-                required
-                className={`${inputClass} pl-7 text-lg font-bold tabular-nums`}
-              />
-              {form.amount > 0 && (
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-text-secondary">
-                  ${formatARS(form.amount)}
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* Sugerencia de monto para Vivienda */}
-          {form.type === 'expense' && form.category === 'Vivienda' && housingContract && (() => {
-            const suggested = getAmountForDate(housingContract, form.date || format(new Date(), 'yyyy-MM-dd'));
-            return (
-              <div className="flex items-center justify-between gap-3 px-3 py-2 bg-accent-blue/8 border border-accent-blue/20 rounded-xl animate-fade-in">
-                <span className="text-xs text-text-secondary">
-                  Alquiler este mes: <span className="font-semibold text-text-primary">${formatARS(suggested)}</span>
-                </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAmountInput(String(suggested));
-                    setForm(prev => ({ ...prev, amount: suggested }));
-                  }}
-                  className="text-xs font-medium text-accent-blue hover:text-blue-400 transition-colors shrink-0"
-                >
-                  Usar
-                </button>
-              </div>
-            );
-          })()}
-
-          {/* Category — visual grid (hidden in transfer mode) */}
+          {/* RIGHT COLUMN: categories grid (hidden in transfer mode) */}
           {formMode !== 'transfer' && (
-            <div>
-              <label className="block text-xs font-medium text-text-secondary mb-1.5 uppercase tracking-wider">
-                Categoría *
-              </label>
-              <div className="grid grid-cols-4 gap-1.5 max-h-52 overflow-y-auto pr-0.5">
-                {categories.map(cat => {
-                  const isSelected = form.category === cat;
-                  const color = getCategoryColor(cat);
-                  return (
-                    <button
-                      key={cat}
-                      type="button"
-                      onClick={() => setForm(prev => ({ ...prev, category: cat }))}
-                      className={`
-                        flex flex-col items-center gap-1 p-2 rounded-xl text-xs font-medium
-                        transition-colors duration-150 border
-                        ${isSelected
-                          ? 'border-opacity-60 shadow-sm'
-                          : 'border-border-color bg-bg-secondary text-text-secondary hover:border-text-secondary/60 hover:text-text-primary'
-                        }
-                      `}
-                      style={isSelected ? {
-                        backgroundColor: `${color}18`,
-                        borderColor: `${color}50`,
-                        color,
-                      } : {}}
-                    >
-                      <span className="text-base leading-none">{categoryIcons[cat] ?? '💳'}</span>
-                      <span className="text-center leading-tight" style={{ fontSize: '10px' }}>
-                        {cat.length > 8 ? cat.slice(0, 7) + '…' : cat}
-                      </span>
-                    </button>
-                  );
-                })}
+            <div className="w-full lg:w-80 flex-shrink-0 overflow-y-auto p-5 space-y-4 flex flex-col">
+              <div className="flex-1">
+                <label className="block text-xs font-medium text-text-secondary mb-1.5 uppercase tracking-wider">
+                  Categoría *
+                </label>
+                <div className="grid grid-cols-4 gap-1.5 max-h-96 overflow-y-auto pr-0.5">
+                  {categories.map(cat => {
+                    const isSelected = form.category === cat;
+                    const color = getCategoryColor(cat);
+                    return (
+                      <button
+                        key={cat}
+                        type="button"
+                        onClick={() => setForm(prev => ({ ...prev, category: cat }))}
+                        className={`
+                          flex flex-col items-center gap-1 p-2 rounded-xl text-xs font-medium
+                          transition-colors duration-150 border
+                          ${isSelected
+                            ? 'border-opacity-60 shadow-sm'
+                            : 'border-border-color bg-bg-secondary text-text-secondary hover:border-text-secondary/60 hover:text-text-primary'
+                          }
+                        `}
+                        style={isSelected ? {
+                          backgroundColor: `${color}18`,
+                          borderColor: `${color}50`,
+                          color,
+                        } : {}}
+                      >
+                        <span className="text-base leading-none">{categoryIcons[cat] ?? '💳'}</span>
+                        <span className="text-center leading-tight" style={{ fontSize: '10px' }}>
+                          {cat.length > 8 ? cat.slice(0, 7) + '…' : cat}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-              <div className="mt-2 flex gap-2">
+
+              <div className="space-y-2 flex-shrink-0">
                 <input
                   type="text"
                   value={newCategoryName}
@@ -550,7 +782,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
                   type="button"
                   onClick={handleAddCustomCategory}
                   disabled={addingCategory}
-                  className="px-3 py-2 rounded-xl text-xs font-medium border border-border-color text-text-secondary hover:text-accent-blue hover:border-accent-blue/40 transition-all shrink-0 disabled:opacity-50"
+                  className="w-full px-3 py-2 rounded-xl text-xs font-medium border border-border-color text-text-secondary hover:text-accent-blue hover:border-accent-blue/40 transition-all disabled:opacity-50"
                 >
                   {addingCategory ? '…' : 'Agregar'}
                 </button>
@@ -558,169 +790,48 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
             </div>
           )}
 
-          {/* Description + Date */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-text-secondary mb-1.5 uppercase tracking-wider">
-                Descripción
-              </label>
-              <input
-                type="text"
-                value={form.description ?? ''}
-                onChange={e => setForm(prev => ({ ...prev, description: e.target.value }))}
-                placeholder="Opcional..."
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary mb-1.5 uppercase tracking-wider flex items-center gap-1">
-                <Calendar size={10} />
-                Fecha *
-              </label>
-              <DatePicker
-                value={form.date}
-                onChange={date => setForm(prev => ({ ...prev, date }))}
-                required
-                className={inputClass}
-              />
-            </div>
-          </div>
-
-          {/* Dollar type + USD amount — only shown for savings categories */}
-          {form.type === 'expense' && SAVINGS_CATEGORIES.includes(form.category) && (
-            <div className="space-y-2 p-3 bg-accent-green/5 border border-accent-green/20 rounded-xl animate-fade-in">
-              <label className="block text-xs font-semibold text-accent-green uppercase tracking-wider">
-                Dólar utilizado <span className="normal-case font-normal text-text-secondary">(opcional)</span>
-              </label>
-              {dollarRates.length > 0 ? (
-                <select
-                  value={form.dollar_type ?? ''}
-                  onChange={e => handleDollarTypeChange(e.target.value || null)}
-                  className={`${inputClass} text-sm`}
-                >
-                  <option value="">Seleccionar dólar...</option>
-                  {dollarRates.map(rate => (
-                    <option key={rate.casa} value={rate.casa}>
-                      {rate.nombre.replace('Dólar ', '').replace('dólar ', '')} - ${formatARS(rate.venta)}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <p className="text-xs text-text-secondary">Cargando cotizaciones…</p>
-              )}
-              <div>
-                <label className="block text-[10px] text-text-secondary mb-1 uppercase tracking-wider">
-                  Monto USD {form.dollar_type ? '(calculado automáticamente)' : '(manual)'}
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary text-sm font-semibold">U$S</span>
-                  <input
-                    type="number"
-                    value={form.amount_usd ?? ''}
-                    onChange={e => setForm(prev => ({
-                      ...prev,
-                      amount_usd: e.target.value ? parseFloat(e.target.value) : null,
-                    }))}
-                    placeholder="0.00"
-                    min="0"
-                    step="any"
-                    className={`${inputClass} pl-10`}
-                  />
-                </div>
-              </div>
-            </div>
+          {/* Column shift for transfer mode: show full width form */}
+          {formMode === 'transfer' && (
+            <div className="hidden"></div>
           )}
-
-          {/* Comprobante */}
-          <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1.5 uppercase tracking-wider">
-              Comprobante
-            </label>
-            {(() => {
-              const existingFilename = !removeReceipt ? (transaction?.receipt_path ?? null) : null;
-              const displayPath = pendingFilePath ?? (existingFilename ? existingFilename : null);
-
-              if (displayPath) {
-                const name = displayPath.includes('/') || displayPath.includes('\\')
-                  ? displayPath.split(/[\\/]/).pop()!
-                  : displayPath;
-                return (
-                  <div className="flex items-center gap-2 px-3 py-2 bg-accent-blue/8 border border-accent-blue/25 rounded-xl">
-                    <Paperclip size={13} className="text-accent-blue flex-shrink-0" />
-                    <span className="text-xs text-text-primary flex-1 truncate" title={name}>{name}</span>
-                    <button
-                      type="button"
-                      onClick={handlePickFile}
-                      className="text-xs text-text-secondary hover:text-accent-blue transition-colors shrink-0"
-                    >
-                      Cambiar
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleRemoveReceipt}
-                      className="p-1 rounded-lg text-text-secondary hover:text-accent-red hover:bg-accent-red/10 transition-all"
-                    >
-                      <FileX size={13} />
-                    </button>
-                  </div>
-                );
-              }
-
-              return (
-                <button
-                  type="button"
-                  onClick={handlePickFile}
-                  className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl border border-dashed border-border-color text-text-secondary hover:border-accent-blue/50 hover:text-accent-blue hover:bg-accent-blue/5 transition-all duration-150 text-xs"
-                >
-                  <Paperclip size={13} />
-                  Adjuntar comprobante (PDF, PNG, JPG)
-                </button>
-              );
-            })()}
-          </div>
-
-          {error && (
-            <div className="text-xs text-accent-red bg-accent-red/10 border border-accent-red/25 rounded-xl px-3 py-2.5 animate-fade-in">
-              {error}
-            </div>
-          )}
-
-          {/* Actions */}
-          <div className="flex gap-3 pt-1">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 py-2.5 rounded-xl text-sm text-text-secondary border border-border-color hover:bg-bg-secondary hover:text-text-primary transition-all duration-150"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className={`
-                flex-1 py-2.5 rounded-xl text-sm font-semibold text-white
-                flex items-center justify-center gap-2 transition-all duration-200
-                hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:scale-100
-                shadow-lg
-                ${formMode === 'income'
-                  ? 'bg-accent-green hover:bg-green-500 shadow-accent-green/20'
-                  : formMode === 'transfer'
-                  ? 'bg-accent-blue hover:bg-blue-500 shadow-accent-blue/20'
-                  : 'bg-accent-blue hover:bg-blue-500 shadow-accent-blue/20'
-                }
-              `}
-            >
-              {loading ? (
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              ) : (
-                <>
-                  {transaction ? <Save size={14} /> : <Plus size={14} />}
-                  {transaction ? 'Guardar cambios' : 'Agregar'}
-                </>
-              )}
-            </button>
-          </div>
         </form>
+
+        {/* Footer Actions */}
+        <div className="border-t border-border-color px-5 py-4 bg-bg-card flex-shrink-0 flex gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 py-2.5 rounded-xl text-sm text-text-secondary border border-border-color hover:bg-bg-secondary hover:text-text-primary transition-all duration-150"
+          >
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            onClick={handleSubmit}
+            disabled={loading}
+            className={`
+              flex-1 py-2.5 rounded-xl text-sm font-semibold text-white
+              flex items-center justify-center gap-2 transition-all duration-200
+              hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:scale-100
+              shadow-lg
+              ${formMode === 'income'
+                ? 'bg-accent-green hover:bg-green-500 shadow-accent-green/20'
+                : formMode === 'transfer'
+                ? 'bg-accent-blue hover:bg-blue-500 shadow-accent-blue/20'
+                : 'bg-accent-blue hover:bg-blue-500 shadow-accent-blue/20'
+              }
+            `}
+          >
+            {loading ? (
+              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            ) : (
+              <>
+                {transaction ? <Save size={14} /> : <Plus size={14} />}
+                {transaction ? 'Guardar cambios' : 'Agregar'}
+              </>
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );

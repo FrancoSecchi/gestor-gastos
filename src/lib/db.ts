@@ -1,5 +1,5 @@
 import Database from '@tauri-apps/plugin-sql';
-import { Transaction, NewTransaction, Summary, CategorySummary } from '../types';
+import { Transaction, NewTransaction, Summary, CategorySummary, RecurringPayment, NewRecurringPayment } from '../types';
 
 let db: Database | null = null;
 
@@ -52,6 +52,20 @@ async function initializeDb(database: Database): Promise<void> {
     )
   `);
 
+  await database.execute(`
+    CREATE TABLE IF NOT EXISTS recurring_payments (
+      id TEXT PRIMARY KEY,
+      type TEXT NOT NULL CHECK(type IN ('expense', 'income')),
+      amount REAL NOT NULL,
+      category TEXT NOT NULL,
+      subcategory TEXT,
+      description TEXT,
+      frequency TEXT NOT NULL,
+      is_active INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL
+    )
+  `);
+
   // Migrations
   try {
     await database.execute(`ALTER TABLE transactions ADD COLUMN dollar_type TEXT`);
@@ -65,6 +79,11 @@ async function initializeDb(database: Database): Promise<void> {
   }
   try {
     await database.execute(`ALTER TABLE transactions ADD COLUMN receipt_path TEXT`);
+  } catch {
+    // Column already exists
+  }
+  try {
+    await database.execute(`ALTER TABLE transactions ADD COLUMN recurring_id TEXT`);
   } catch {
     // Column already exists
   }
@@ -159,9 +178,9 @@ export async function createTransaction(tx: NewTransaction): Promise<Transaction
   const created_at = new Date().toISOString();
 
   await database.execute(
-    `INSERT INTO transactions (id, type, subtype, amount, amount_usd, dollar_type, category, subcategory, description, receipt_path, date, created_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
-    [id, tx.type, tx.subtype ?? null, tx.amount, tx.amount_usd ?? null, tx.dollar_type ?? null, tx.category, tx.subcategory ?? null, tx.description ?? null, tx.receipt_path ?? null, tx.date, created_at]
+    `INSERT INTO transactions (id, type, subtype, amount, amount_usd, dollar_type, category, subcategory, description, receipt_path, date, created_at, recurring_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+    [id, tx.type, tx.subtype ?? null, tx.amount, tx.amount_usd ?? null, tx.dollar_type ?? null, tx.category, tx.subcategory ?? null, tx.description ?? null, tx.receipt_path ?? null, tx.date, created_at, tx.recurring_id ?? null]
   );
 
   return { ...tx, id, created_at };
@@ -170,11 +189,59 @@ export async function createTransaction(tx: NewTransaction): Promise<Transaction
 export async function updateTransaction(tx: Transaction): Promise<Transaction> {
   const database = await getDb();
   await database.execute(
-    `UPDATE transactions SET type=$1, subtype=$2, amount=$3, amount_usd=$4, dollar_type=$5, category=$6, subcategory=$7, description=$8, receipt_path=$9, date=$10
-     WHERE id=$11`,
-    [tx.type, tx.subtype ?? null, tx.amount, tx.amount_usd ?? null, tx.dollar_type ?? null, tx.category, tx.subcategory ?? null, tx.description ?? null, tx.receipt_path ?? null, tx.date, tx.id]
+    `UPDATE transactions SET type=$1, subtype=$2, amount=$3, amount_usd=$4, dollar_type=$5, category=$6, subcategory=$7, description=$8, receipt_path=$9, date=$10, recurring_id=$11
+     WHERE id=$12`,
+    [tx.type, tx.subtype ?? null, tx.amount, tx.amount_usd ?? null, tx.dollar_type ?? null, tx.category, tx.subcategory ?? null, tx.description ?? null, tx.receipt_path ?? null, tx.date, tx.recurring_id ?? null, tx.id]
   );
   return tx;
+}
+
+// --- Recurring Payments ---
+
+export async function createRecurringPayment(rp: NewRecurringPayment): Promise<RecurringPayment> {
+  const database = await getDb();
+  const id = generateId();
+  const created_at = new Date().toISOString();
+
+  await database.execute(
+    `INSERT INTO recurring_payments (id, type, amount, category, subcategory, description, frequency, is_active, created_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, 1, $8)`,
+    [id, rp.type, rp.amount, rp.category, rp.subcategory ?? null, rp.description ?? null, rp.frequency, created_at]
+  );
+
+  return { ...rp, id, is_active: 1, created_at };
+}
+
+export async function getRecurringPayments(): Promise<RecurringPayment[]> {
+  const database = await getDb();
+  return database.select<RecurringPayment[]>(
+    `SELECT * FROM recurring_payments ORDER BY created_at DESC`
+  );
+}
+
+export async function updateRecurringPayment(rp: RecurringPayment): Promise<RecurringPayment> {
+  const database = await getDb();
+  await database.execute(
+    `UPDATE recurring_payments SET type=$1, amount=$2, category=$3, subcategory=$4, description=$5, frequency=$6, is_active=$7
+     WHERE id=$8`,
+    [rp.type, rp.amount, rp.category, rp.subcategory ?? null, rp.description ?? null, rp.frequency, rp.is_active, rp.id]
+  );
+  return rp;
+}
+
+export async function deleteRecurringPayment(id: string): Promise<void> {
+  const database = await getDb();
+  await database.execute(`DELETE FROM recurring_payments WHERE id=$1`, [id]);
+  // Unlink any transactions
+  await database.execute(`UPDATE transactions SET recurring_id=NULL WHERE recurring_id=$1`, [id]);
+}
+
+export async function getTransactionsByRecurringId(recurringId: string): Promise<Transaction[]> {
+  const database = await getDb();
+  return database.select<Transaction[]>(
+    `SELECT * FROM transactions WHERE recurring_id=$1 ORDER BY date DESC`,
+    [recurringId]
+  );
 }
 
 export async function deleteTransaction(id: string): Promise<boolean> {
@@ -253,7 +320,7 @@ export async function setSetting(key: string, value: string): Promise<boolean> {
   return true;
 }
 
-const ALLOWED_TABLES = ['transactions', 'settings', 'error_logs'] as const;
+const ALLOWED_TABLES = ['transactions', 'settings', 'error_logs', 'recurring_payments'] as const;
 export type DbTable = typeof ALLOWED_TABLES[number];
 
 export async function getTableRows(
