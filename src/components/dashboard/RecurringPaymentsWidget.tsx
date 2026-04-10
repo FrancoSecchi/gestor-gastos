@@ -20,14 +20,15 @@ function isPaidInCurrentPeriod(rp: RecurringPayment, transactions: Transaction[]
   );
 }
 
-export const RecurringPaymentsWidget: React.FC<RecurringPaymentsWidgetProps> = ({
-  recurringPayments,
-  currentMonthTransactions,
-  categoryIcons,
-  onRegisterPayment,
-  onDeleteRecurring,
-  onToggleRecurring,
-}) => {
+export const RecurringPaymentsWidget = React.memo((props: RecurringPaymentsWidgetProps) => {
+  const {
+    recurringPayments,
+    currentMonthTransactions,
+    categoryIcons,
+    onRegisterPayment,
+    onDeleteRecurring,
+    onToggleRecurring,
+  } = props;
   const [collapsed, setCollapsed] = useState(false);
   const [showInactive, setShowInactive] = useState(false);
 
@@ -187,4 +188,4 @@ export const RecurringPaymentsWidget: React.FC<RecurringPaymentsWidgetProps> = (
       )}
     </div>
   );
-};
+});

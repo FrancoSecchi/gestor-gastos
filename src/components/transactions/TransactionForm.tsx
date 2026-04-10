@@ -44,20 +44,21 @@ function formatAmountDisplay(value: number): string {
   return formatARS(value);
 }
 
-export const TransactionForm: React.FC<TransactionFormProps> = ({
-  transaction,
-  initialType,
-  recurringTemplate,
-  recurringPayments = [],
-  expenseCategories,
-  incomeCategories,
-  categoryIcons,
-  housingContract,
-  dollarRates = [],
-  onAddCustomCategory,
-  onSave,
-  onClose,
-}) => {
+export const TransactionForm = React.memo((props: TransactionFormProps) => {
+  const {
+    transaction,
+    initialType,
+    recurringTemplate,
+    recurringPayments = [],
+    expenseCategories,
+    incomeCategories,
+    categoryIcons,
+    housingContract,
+    dollarRates = [],
+    onAddCustomCategory,
+    onSave,
+    onClose,
+  } = props;
   const [form, setForm] = useState<NewTransaction>(defaultForm);
   const [loading, setLoading] = useState(false);
   const [addingCategory, setAddingCategory] = useState(false);
@@ -835,4 +836,4 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
       </div>
     </div>
   );
-};
+});

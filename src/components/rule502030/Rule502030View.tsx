@@ -23,17 +23,18 @@ const GROUP_OPTIONS: { value: Rule502030Group; label: string }[] = [
   { value: 'Ahorro/Inversión', label: 'Ahorro / Inversión (20%)' },
 ];
 
-export const Rule502030View: React.FC<Rule502030ViewProps> = ({
-  transactions,
-  totalIncome,
-  expenseCategories,
-  mapping,
-  effectiveMapping,
-  startDate,
-  endDate,
-  onSave,
-  onReset,
-}) => {
+export const Rule502030View = React.memo((props: Rule502030ViewProps) => {
+  const {
+    transactions,
+    totalIncome,
+    expenseCategories,
+    mapping,
+    effectiveMapping,
+    startDate,
+    endDate,
+    onSave,
+    onReset,
+  } = props;
   const [assign, setAssign] = useState<Record<string, Rule502030Group>>({});
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -172,4 +173,4 @@ export const Rule502030View: React.FC<Rule502030ViewProps> = ({
       </div>
     </div>
   );
-};
+});

@@ -93,7 +93,8 @@ const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent
   );
 };
 
-export const ExpenseChart: React.FC<ExpenseChartProps> = ({ transactions, byCategory }) => {
+export const ExpenseChart = React.memo((props: ExpenseChartProps) => {
+  const { transactions, byCategory } = props;
   const [hoveredCategory, setHoveredCategory] = useState<string | null>(null);
 
   // Pie chart data
@@ -269,4 +270,4 @@ export const ExpenseChart: React.FC<ExpenseChartProps> = ({ transactions, byCate
       </div>
     </div>
   );
-};
+});

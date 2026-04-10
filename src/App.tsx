@@ -128,9 +128,9 @@ function AppInner() {
     recurring: true,
   });
 
-  const toggleCard = (cardId: string) => {
+  const toggleCard = useCallback((cardId: string) => {
     setExpandedCards(prev => ({ ...prev, [cardId]: !prev[cardId] }));
-  };
+  }, []);
 
   // Current month transactions for the recurring payments widget
   const [currentMonthTransactions, setCurrentMonthTransactions] = useState<Transaction[]>([]);

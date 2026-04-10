@@ -40,16 +40,17 @@ const DATE_FILTER_LABELS: Record<DateFilter, string> = {
   custom: 'Personalizado',
 };
 
-export const TransactionFilters: React.FC<TransactionFiltersProps> = ({
-  filters,
-  dateRange,
-  expenseCategories,
-  incomeCategories,
-  onDateFilter,
-  onCustomRange,
-  onTypeFilter,
-  onCategoryFilter,
-}) => {
+export const TransactionFilters = React.memo((props: TransactionFiltersProps) => {
+  const {
+    filters,
+    dateRange,
+    expenseCategories,
+    incomeCategories,
+    onDateFilter,
+    onCustomRange,
+    onTypeFilter,
+    onCategoryFilter,
+  } = props;
   const categoryOptions = useMemo(() => {
     if (filters.type === 'expense') return expenseCategories;
     if (filters.type === 'income') return incomeCategories;
@@ -119,4 +120,4 @@ export const TransactionFilters: React.FC<TransactionFiltersProps> = ({
       </div>
     </div>
   );
-};
+});

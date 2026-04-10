@@ -44,18 +44,19 @@ function groupTransactions(transactions: Transaction[]) {
   return order.map(k => groups[k]);
 }
 
-export const TransactionList: React.FC<TransactionListProps> = ({
-  transactions,
-  filters,
-  loading,
-  categoryIcons,
-  onAdd,
-  onEdit,
-  onDelete,
-  onClearAll,
-  onExportExcel,
-  onExportClaude,
-}) => {
+export const TransactionList = React.memo((props: TransactionListProps) => {
+  const {
+    transactions,
+    filters,
+    loading,
+    categoryIcons,
+    onAdd,
+    onEdit,
+    onDelete,
+    onClearAll,
+    onExportExcel,
+    onExportClaude,
+  } = props;
   const [viewingReceipt, setViewingReceipt] = useState<string | null>(null);
 
   // Apply local filters
@@ -304,4 +305,4 @@ export const TransactionList: React.FC<TransactionListProps> = ({
       )}
     </div>
   );
-};
+});

@@ -16,7 +16,8 @@ function weeksRemainingInMonth(): number {
   return Math.max(daysLeft / 7, 1 / 7);
 }
 
-export const SummaryCards: React.FC<SummaryCardsProps> = ({ summary, loading, onOpenForm }) => {
+export const SummaryCards = React.memo((props: SummaryCardsProps) => {
+  const { summary, loading, onOpenForm } = props;
   const balance = summary?.balance ?? 0;
   const balancePositive = balance >= 0;
   const weeksLeft = weeksRemainingInMonth();
@@ -170,4 +171,4 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({ summary, loading, on
       })}
     </div>
   );
-};
+});
