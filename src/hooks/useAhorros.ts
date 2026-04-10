@@ -228,4 +228,3 @@ export function useAhorros(mapping?: Rule502030Mapping | null) {
   return { data, loading, error, refresh: fetch, saveInitialBalance };
 }
 
-export type { InitialBalanceMeta };
