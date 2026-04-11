@@ -172,7 +172,9 @@ function AppInner() {
 
   const {
     mapping: rule502030Mapping,
+    percentages: rule502030Percentages,
     updateMapping: updateRule502030Mapping,
+    updatePercentages: updateRule502030Percentages,
     refresh: refreshRule502030Mapping,
   } = useRule502030Mapping(expenseCategories);
   const toast = useToast();
@@ -338,7 +340,7 @@ function AppInner() {
   const handleExportClaude = useCallback(async () => {
     if (!summary) return;
     try {
-      const rule = calculateRule502030(transactions, summary.total_income, effectiveRule502030Mapping);
+      const rule = calculateRule502030(transactions, summary.total_income, effectiveRule502030Mapping, rule502030Percentages);
       const content = exportForClaude(transactions, summary, rule, dateRange.start, dateRange.end);
       const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
       const url = URL.createObjectURL(blob);
@@ -424,6 +426,7 @@ function AppInner() {
                       transactions={transactions}
                       totalIncome={summary?.total_income ?? 0}
                       mapping={effectiveRule502030Mapping}
+                      percentages={rule502030Percentages}
                       startDate={dateRange.start}
                       endDate={dateRange.end}
                     />
@@ -531,9 +534,11 @@ function AppInner() {
                 expenseCategories={expenseCategories}
                 mapping={rule502030Mapping}
                 effectiveMapping={effectiveRule502030Mapping}
+                percentages={rule502030Percentages}
                 startDate={dateRange.start}
                 endDate={dateRange.end}
                 onSave={updateRule502030Mapping}
+                onSavePercentages={updateRule502030Percentages}
                 onReset={async () => {
                   await updateRule502030Mapping(
                     ensureMappingCoversCategories(getDefaultRule502030Mapping(), expenseCategories)

@@ -1,5 +1,17 @@
-import { Transaction, Rule502030Data, Rule502030Group } from '../types';
+import { Transaction, Rule502030Data, Rule502030Group, Rule502030Percentages } from '../types';
 import { Rule502030Mapping, getDefaultRule502030Mapping } from './rule502030Mapping';
+
+export const DEFAULT_PERCENTAGES: Rule502030Percentages = {
+  Necesidades: 50,
+  Deseos: 30,
+  'Ahorro/Inversión': 20,
+};
+
+const GROUP_COLORS: Record<Rule502030Group, string> = {
+  'Necesidades': '#3b82f6',
+  'Deseos': '#a855f7',
+  'Ahorro/Inversión': '#22c55e',
+};
 
 /**
  * Usa el mapeo configurado por el usuario (qué categoría de gasto cae en Necesidades / Deseos / Ahorro).
@@ -8,7 +20,8 @@ import { Rule502030Mapping, getDefaultRule502030Mapping } from './rule502030Mapp
 export function calculateRule502030(
   transactions: Transaction[],
   totalIncome: number,
-  mapping: Rule502030Mapping = getDefaultRule502030Mapping()
+  mapping: Rule502030Mapping = getDefaultRule502030Mapping(),
+  percentages: Rule502030Percentages = DEFAULT_PERCENTAGES
 ): Rule502030Data[] {
   const expensesByCategory: Record<string, number> = {};
   transactions
@@ -26,13 +39,11 @@ export function calculateRule502030(
     }
   }
 
-  const groups: { group: Rule502030Group; percentage: number; color: string }[] = [
-    { group: 'Necesidades', percentage: 50, color: '#3b82f6' },
-    { group: 'Deseos', percentage: 30, color: '#a855f7' },
-    { group: 'Ahorro/Inversión', percentage: 20, color: '#22c55e' },
-  ];
+  const groups: Rule502030Group[] = ['Necesidades', 'Deseos', 'Ahorro/Inversión'];
 
-  return groups.map(({ group, percentage, color }) => {
+  return groups.map(group => {
+    const percentage = percentages[group];
+    const color = GROUP_COLORS[group];
     const categories = mapping[group];
     let spent = categories.reduce((sum, cat) => sum + (expensesByCategory[cat] ?? 0), 0);
     if (group === 'Deseos') {

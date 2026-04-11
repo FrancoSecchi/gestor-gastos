@@ -54,6 +54,12 @@ export type Category = ExpenseCategory | IncomeCategory;
 
 export type Rule502030Group = 'Necesidades' | 'Deseos' | 'Ahorro/Inversión';
 
+export interface Rule502030Percentages {
+  Necesidades: number;
+  Deseos: number;
+  'Ahorro/Inversión': number;
+}
+
 export interface Transaction {
   id: string;
   type: TransactionType;

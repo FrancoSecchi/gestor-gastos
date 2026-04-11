@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { AlertTriangle, CheckCircle, Info } from 'lucide-react';
-import { Transaction, Rule502030Data } from '../../types';
+import { Transaction, Rule502030Data, Rule502030Percentages } from '../../types';
 import { formatARS } from '../../lib/export';
-import { calculateRule502030 } from '../../lib/rule502030';
+import { calculateRule502030, DEFAULT_PERCENTAGES } from '../../lib/rule502030';
 import { Rule502030Mapping } from '../../lib/rule502030Mapping';
 import { differenceInDays, parseISO, isAfter, isBefore, startOfDay } from 'date-fns';
 import { InfoTooltip } from '../ui/InfoTooltip';
@@ -11,6 +11,7 @@ interface Rule502030Props {
   transactions: Transaction[];
   totalIncome: number;
   mapping: Rule502030Mapping;
+  percentages?: Rule502030Percentages;
   startDate?: string;
   endDate?: string;
 }
@@ -65,7 +66,7 @@ function HealthScore({ data }: { data: Rule502030Data[] }) {
   );
 }
 
-export const Rule502030: React.FC<Rule502030Props> = ({ transactions, totalIncome, mapping, startDate, endDate }) => {
+export const Rule502030: React.FC<Rule502030Props> = ({ transactions, totalIncome, mapping, percentages = DEFAULT_PERCENTAGES, startDate, endDate }) => {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -73,7 +74,7 @@ export const Rule502030: React.FC<Rule502030Props> = ({ transactions, totalIncom
     return () => clearTimeout(t);
   }, []);
 
-  const data = calculateRule502030(transactions, totalIncome, mapping);
+  const data = calculateRule502030(transactions, totalIncome, mapping, percentages);
 
   // Calcular ratio de progreso del período
   const progressRatio = (() => {
