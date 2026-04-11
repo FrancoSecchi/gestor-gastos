@@ -63,6 +63,10 @@ export const TransactionList = React.memo((props: TransactionListProps) => {
   const filtered = useMemo(() => transactions.filter(tx => {
     if (filters.type !== 'all' && tx.type !== filters.type) return false;
     if (filters.category && tx.category !== filters.category) return false;
+    if (filters.quickFilters.includes('recurring') && !tx.recurring_id) return false;
+    if (filters.quickFilters.includes('savings_transfer') &&
+        tx.subtype !== 'transfer_to_savings' && tx.subtype !== 'transfer_from_savings') return false;
+    if (filters.quickFilters.includes('has_receipt') && !tx.receipt_path) return false;
     return true;
   }), [transactions, filters]);
 
@@ -147,7 +151,7 @@ export const TransactionList = React.memo((props: TransactionListProps) => {
                 No hay transacciones
               </p>
               <p className="text-xs text-text-secondary max-w-xs">
-                {filters.type !== 'all' || filters.category
+                {filters.type !== 'all' || filters.category || filters.quickFilters.length > 0
                   ? 'No hay transacciones que coincidan con los filtros seleccionados.'
                   : 'Empezá registrando tu primer ingreso o gasto para ver todo aquí.'}
               </p>

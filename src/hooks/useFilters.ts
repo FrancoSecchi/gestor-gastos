@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { FilterState, DateFilter, DateRange } from '../types';
+import { FilterState, DateFilter, DateRange, QuickFilter } from '../types';
 import {
   startOfWeek, endOfWeek,
   startOfMonth, endOfMonth,
@@ -77,6 +77,7 @@ export function useFilters() {
     },
     type: 'all',
     category: '',
+    quickFilters: [],
   });
 
   const dateRange = useMemo(
@@ -93,11 +94,23 @@ export function useFilters() {
   };
 
   const setTypeFilter = (type: FilterState['type']) => {
-    setFilters(prev => ({ ...prev, type }));
+    setFilters(prev => ({ ...prev, type, category: '' }));
   };
 
   const setCategoryFilter = (category: string) => {
     setFilters(prev => ({ ...prev, category }));
+  };
+
+  const toggleQuickFilter = (qf: QuickFilter) => {
+    setFilters(prev => {
+      const active = prev.quickFilters.includes(qf);
+      return {
+        ...prev,
+        quickFilters: active
+          ? prev.quickFilters.filter(f => f !== qf)
+          : [...prev.quickFilters, qf],
+      };
+    });
   };
 
   return {
@@ -107,5 +120,6 @@ export function useFilters() {
     setCustomRange,
     setTypeFilter,
     setCategoryFilter,
+    toggleQuickFilter,
   };
 }

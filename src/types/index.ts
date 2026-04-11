@@ -131,11 +131,14 @@ export interface DateRange {
   end: string;
 }
 
+export type QuickFilter = 'recurring' | 'savings_transfer' | 'has_receipt';
+
 export interface FilterState {
   dateFilter: DateFilter;
   customRange: DateRange;
   type: 'all' | 'expense' | 'income';
   category: string;
+  quickFilters: QuickFilter[];
 }
 
 export interface Rule502030Data {

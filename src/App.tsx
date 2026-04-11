@@ -63,7 +63,7 @@ const CollapsibleCard: React.FC<CollapsibleCardProps> = ({ title, isOpen, onTogg
   <div className="border border-border-color rounded-xl bg-bg-card overflow-hidden">
     <button
       onClick={onToggle}
-      className="w-full flex items-center justify-between px-5 py-3 hover:bg-bg-secondary/50 transition-colors"
+      className="w-full flex items-center justify-between px-5 py-3 hover:bg-bg-secondary/50"
     >
       <h3 className="font-semibold text-text-primary text-sm">{title}</h3>
       <ChevronDown
@@ -74,7 +74,7 @@ const CollapsibleCard: React.FC<CollapsibleCardProps> = ({ title, isOpen, onTogg
       />
     </button>
     <div
-      className="overflow-hidden transition-all duration-200"
+      className="overflow-hidden"
       style={{
         maxHeight: isOpen ? '1000px' : '0',
         opacity: isOpen ? 1 : 0,
@@ -137,7 +137,7 @@ function AppInner() {
   // Current month transactions for the recurring payments widget
   const [currentMonthTransactions, setCurrentMonthTransactions] = useState<Transaction[]>([]);
 
-  const { filters, dateRange, setDateFilter, setCustomRange, setTypeFilter, setCategoryFilter } = useFilters();
+  const { filters, dateRange, setDateFilter, setCustomRange, setTypeFilter, setCategoryFilter, toggleQuickFilter } = useFilters();
   const { transactions, summary, loading, addTransaction, editTransaction, removeTransaction, clearDatabase, refresh: refreshTransactions } = useTransactions(
     dateRange.start,
     dateRange.end
@@ -388,7 +388,9 @@ function AppInner() {
                   onCustomRange={setCustomRange}
                   onTypeFilter={setTypeFilter}
                   onCategoryFilter={setCategoryFilter}
-                />              
+                  onToggleQuickFilter={toggleQuickFilter}
+                  showSegmentation={false}
+                />
 
               {/* Summary Cards - Collapsible */}
               
@@ -459,6 +461,7 @@ function AppInner() {
                 onCustomRange={setCustomRange}
                 onTypeFilter={setTypeFilter}
                 onCategoryFilter={setCategoryFilter}
+                onToggleQuickFilter={toggleQuickFilter}
               />
               <div className="flex-1 overflow-hidden">
                 <TransactionList
@@ -489,6 +492,7 @@ function AppInner() {
                   onCustomRange={setCustomRange}
                   onTypeFilter={setTypeFilter}
                   onCategoryFilter={setCategoryFilter}
+                  onToggleQuickFilter={toggleQuickFilter}
                 />
               </div>
               <div className="flex-1 overflow-hidden">
