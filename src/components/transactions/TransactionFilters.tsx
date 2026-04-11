@@ -1,7 +1,15 @@
 import React, { useMemo } from 'react';
 import { Calendar, RefreshCw, ArrowRightLeft, Paperclip } from 'lucide-react';
+import { formatARS } from '../../lib/export';
 import { DateFilter, FilterState, DateRange, QuickFilter } from '../../types';
 import { DatePicker } from '../ui/DatePicker';
+
+interface MonthProgress {
+  day: number;
+  totalDays: number;
+  spent: number;
+  income: number;
+}
 
 interface TransactionFiltersProps {
   filters: FilterState;
@@ -14,6 +22,7 @@ interface TransactionFiltersProps {
   onCategoryFilter: (category: string) => void;
   onToggleQuickFilter: (qf: QuickFilter) => void;
   showSegmentation?: boolean;
+  monthProgress?: MonthProgress;
 }
 
 const DATE_FILTER_GROUPS: { label: string; filters: DateFilter[] }[] = [
@@ -66,6 +75,7 @@ export const TransactionFilters = React.memo((props: TransactionFiltersProps) =>
     onCategoryFilter,
     onToggleQuickFilter,
     showSegmentation = true,
+    monthProgress,
   } = props;
 
   const categoryOptions = useMemo(() => {
@@ -135,6 +145,34 @@ export const TransactionFilters = React.memo((props: TransactionFiltersProps) =>
           {dateRange.start} — {dateRange.end}
         </span>
       </div>
+
+      {/* Month progress bar — only when monthProgress is provided */}
+      {monthProgress && !showSegmentation && (
+        <>
+          <div className="h-px bg-border-color/60" />
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-1.5 bg-bg-secondary rounded-full overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-700"
+                style={{
+                  width: `${monthProgress.income > 0 ? Math.min((monthProgress.spent / monthProgress.income) * 100, 100) : 0}%`,
+                  backgroundColor:
+                    monthProgress.income === 0 ? '#3b82f6'
+                    : monthProgress.spent / monthProgress.income > 1 ? '#ef4444'
+                    : monthProgress.spent / monthProgress.income > 0.7 ? '#f97316'
+                    : '#3b82f6',
+                }}
+              />
+            </div>
+            <span className="text-xs text-text-secondary whitespace-nowrap tabular-nums flex-shrink-0">
+              Día {monthProgress.day} de {monthProgress.totalDays}
+              {' · '}
+              <span className="text-text-primary font-medium">${formatARS(monthProgress.spent)}</span>
+              {' de $'}{formatARS(monthProgress.income)}
+            </span>
+          </div>
+        </>
+      )}
 
       {showSegmentation && <div className="h-px bg-border-color/60" />}
 

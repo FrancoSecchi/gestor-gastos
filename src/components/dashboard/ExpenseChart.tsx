@@ -93,8 +93,17 @@ const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent
   );
 };
 
+type Tab = 'pie' | 'bar' | 'area';
+
+const TABS: { id: Tab; label: string }[] = [
+  { id: 'pie', label: 'Categorías' },
+  { id: 'bar', label: 'Mensual' },
+  { id: 'area', label: 'Balance' },
+];
+
 export const ExpenseChart = React.memo((props: ExpenseChartProps) => {
   const { transactions, byCategory } = props;
+  const [activeTab, setActiveTab] = useState<Tab>('pie');
   const [hoveredCategory, setHoveredCategory] = useState<string | null>(null);
 
   // Pie chart data
@@ -107,7 +116,7 @@ export const ExpenseChart = React.memo((props: ExpenseChartProps) => {
   const total = pieData.reduce((s, d) => s + d.value, 0);
 
   // Bar chart: income vs expenses by month
-  const monthlyData = React.useMemo(() => {
+  const monthlyData = useMemo(() => {
     const monthMap: Record<string, { month: string; Ingresos: number; Gastos: number }> = {};
     transactions.forEach(tx => {
       const monthKey = format(startOfMonth(parseISO(tx.date)), 'yyyy-MM');
@@ -133,19 +142,38 @@ export const ExpenseChart = React.memo((props: ExpenseChartProps) => {
   const axisStyle = { fill: '#94a3b8', fontSize: 10 };
   const gridStyle = { stroke: '#2d3148', strokeDasharray: '3 3' };
 
-  const emptyState = (h: number) => (
-    <div className={`h-${h} flex flex-col items-center justify-center gap-2 text-text-secondary`}>
+  const emptyState = (
+    <div className="h-48 flex flex-col items-center justify-center gap-2 text-text-secondary">
       <span className="text-2xl opacity-40">📊</span>
       <p className="text-xs">Sin datos para mostrar</p>
     </div>
   );
 
   return (
-    <div className="grid grid-cols-2 gap-4">
+    <div className="bg-bg-card border border-border-color rounded-xl p-4 card-hover">
+      {/* Header with tabs */}
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-sm font-semibold text-text-primary">Gráficos</h3>
+        <div className="flex items-center gap-1">
+          {TABS.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                activeTab === tab.id
+                  ? 'bg-bg-secondary border border-border-color text-text-primary'
+                  : 'text-text-secondary hover:text-text-primary'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Pie Chart */}
-      <div className="bg-bg-card border border-border-color rounded-xl p-4 col-span-2 card-hover">
-        <h3 className="text-sm font-semibold text-text-primary mb-3">Gastos por Categoría</h3>
-        {pieData.length > 0 ? (
+      {activeTab === 'pie' && (
+        pieData.length > 0 ? (
           <div className="flex gap-6 items-center">
             <ResponsiveContainer width="35%" height={210}>
               <PieChart>
@@ -201,14 +229,13 @@ export const ExpenseChart = React.memo((props: ExpenseChartProps) => {
               })}
             </div>
           </div>
-        ) : emptyState(48)}
-      </div>
+        ) : emptyState
+      )}
 
       {/* Bar Chart */}
-      <div className="bg-bg-card border border-border-color rounded-xl p-4 col-span-2 card-hover">
-        <h3 className="text-sm font-semibold text-text-primary mb-3">Ingresos vs Gastos</h3>
-        {monthlyData.length > 0 ? (
-          <ResponsiveContainer width="100%" height={190}>
+      {activeTab === 'bar' && (
+        monthlyData.length > 0 ? (
+          <ResponsiveContainer width="100%" height={220}>
             <BarChart data={monthlyData} barSize={22} barGap={4}>
               <defs>
                 <linearGradient id="barGreen" x1="0" y1="0" x2="0" y2="1">
@@ -224,30 +251,23 @@ export const ExpenseChart = React.memo((props: ExpenseChartProps) => {
               <XAxis dataKey="month" tick={axisStyle} />
               <YAxis tick={axisStyle} tickFormatter={v => `$${(v / 1000).toFixed(0)}k`} width={40} />
               <Tooltip content={CustomTooltipBar} cursor={{ fill: 'rgba(59,130,246,0.05)' }} />
-              <Legend
-                wrapperStyle={{ fontSize: '11px', color: '#94a3b8', paddingTop: '4px' }}
-              />
+              <Legend wrapperStyle={{ fontSize: '11px', color: '#94a3b8', paddingTop: '4px' }} />
               <Bar dataKey="Ingresos" fill="url(#barGreen)" radius={[3, 3, 0, 0]} isAnimationActive={false} />
               <Bar dataKey="Gastos" fill="url(#barRed)" radius={[3, 3, 0, 0]} isAnimationActive={false} />
             </BarChart>
           </ResponsiveContainer>
-        ) : emptyState(48)}
-      </div>
+        ) : emptyState
+      )}
 
-      {/* Area Chart - balance evolution */}
-      <div className="bg-bg-card border border-border-color rounded-xl p-4 col-span-2 card-hover">
-        <h3 className="text-sm font-semibold text-text-primary mb-3">Evolución del Balance</h3>
-        {savingsData.length > 0 ? (
-          <ResponsiveContainer width="100%" height={140}>
+      {/* Area Chart */}
+      {activeTab === 'area' && (
+        savingsData.length > 0 ? (
+          <ResponsiveContainer width="100%" height={220}>
             <AreaChart data={savingsData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="areaBlue" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.25} />
                   <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                </linearGradient>
-                <linearGradient id="areaGreen" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#22c55e" stopOpacity={0.20} />
-                  <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid {...gridStyle} />
@@ -266,8 +286,8 @@ export const ExpenseChart = React.memo((props: ExpenseChartProps) => {
               />
             </AreaChart>
           </ResponsiveContainer>
-        ) : emptyState(32)}
-      </div>
+        ) : emptyState
+      )}
     </div>
   );
 });

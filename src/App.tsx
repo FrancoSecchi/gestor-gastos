@@ -6,6 +6,8 @@ import { ExpenseChart } from './components/dashboard/ExpenseChart';
 import { Rule502030 } from './components/dashboard/Rule502030';
 import { DollarRate } from './components/dashboard/DollarRate';
 import { RecurringPaymentsWidget } from './components/dashboard/RecurringPaymentsWidget';
+import { InsightsWidget } from './components/dashboard/InsightsWidget';
+import { RecentTransactions } from './components/dashboard/RecentTransactions';
 import { TransactionFilters } from './components/transactions/TransactionFilters';
 import { TransactionList } from './components/transactions/TransactionList';
 import { TransactionForm } from './components/transactions/TransactionForm';
@@ -22,7 +24,8 @@ const HousingView = lazy(() => import('./components/housing/HousingView').then(m
 import { CategoriesProvider } from './contexts/CategoriesContext';
 import { useCategoriesContext } from './hooks/useCategoriesContext';
 import { useTransactions } from './hooks/useTransactions';
-import { useRecurringPayments } from './hooks/useRecurringPayments';
+import { useRecurringPayments, getCurrentPeriodRange } from './hooks/useRecurringPayments';
+import { useAhorros } from './hooks/useAhorros';
 import { deleteReceiptFile } from './lib/receiptUtils';
 import { useDollarRate } from './hooks/useDollarRate';
 import { useFilters } from './hooks/useFilters';
@@ -36,18 +39,18 @@ import {
 } from './lib/rule502030Mapping';
 import { useRule502030Mapping } from './hooks/useRule502030Mapping';
 import { useHousingContract } from './hooks/useHousingContract';
-import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { format, startOfMonth, endOfMonth, subMonths, parseISO, differenceInDays } from 'date-fns';
 import { ChevronDown } from 'lucide-react';
 
 const VIEW_TITLES: Record<ActiveView, string> = {
-  dashboard: 'Dashboard',
-  transactions: 'Transacciones',
+  dashboard: 'Inicio',
+  transactions: 'Movimientos',
   analysis: 'Análisis con IA',
   categories: 'Categorías',
-  rule502030: 'Regla 50/30/20',
+  rule502030: 'Presupuesto',
   vivienda: 'Vivienda',
   ahorros: 'Ahorros',
-  settings: 'Configuración',
+  settings: 'Ajustes',
   database: 'Base de datos',
 };
 
@@ -195,6 +198,81 @@ function AppInner() {
   const { contract: housingContract, loading: housingLoading, save: saveHousingContract, remove: removeHousingContract } = useHousingContract();
   const { recurringPayments, refresh: refreshRecurring, toggleRecurring, removeRecurring } = useRecurringPayments();
 
+  // Previous period transactions for InsightsWidget
+  const [previousTransactions, setPreviousTransactions] = useState<Transaction[]>([]);
+  const previousDateRange = React.useMemo(() => {
+    if (filters.dateFilter === 'current_month') {
+      const prev = subMonths(new Date(), 1);
+      return {
+        start: format(startOfMonth(prev), 'yyyy-MM-dd'),
+        end: format(endOfMonth(prev), 'yyyy-MM-dd'),
+      };
+    }
+    if (filters.dateFilter === 'last_month') {
+      const prev = subMonths(new Date(), 2);
+      return {
+        start: format(startOfMonth(prev), 'yyyy-MM-dd'),
+        end: format(endOfMonth(prev), 'yyyy-MM-dd'),
+      };
+    }
+    // For other filters: shift the same duration back
+    try {
+      const start = parseISO(dateRange.start);
+      const end = parseISO(dateRange.end);
+      const days = differenceInDays(end, start) + 1;
+      const prevEnd = new Date(start);
+      prevEnd.setDate(prevEnd.getDate() - 1);
+      const prevStart = new Date(prevEnd);
+      prevStart.setDate(prevStart.getDate() - days + 1);
+      return {
+        start: format(prevStart, 'yyyy-MM-dd'),
+        end: format(prevEnd, 'yyyy-MM-dd'),
+      };
+    } catch {
+      return { start: dateRange.start, end: dateRange.end };
+    }
+  }, [filters.dateFilter, dateRange.start, dateRange.end]);
+
+  useEffect(() => {
+    getTransactions(previousDateRange.start, previousDateRange.end).then(setPreviousTransactions);
+  }, [previousDateRange.start, previousDateRange.end]);
+
+  // Projected balance (only for current_month, min 3 days elapsed)
+  const projectedBalance = React.useMemo(() => {
+    if (filters.dateFilter !== 'current_month') return null;
+    const today = new Date();
+    const daysElapsed = today.getDate();
+    if (daysElapsed < 3) return null;
+    const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+    return ((summary?.balance ?? 0) / daysElapsed) * daysInMonth;
+  }, [summary?.balance, filters.dateFilter]);
+
+  // Pending recurring amount
+  const pendingRecurringAmount = React.useMemo(() => {
+    if (!recurringPayments?.length) return 0;
+    return recurringPayments
+      .filter(rp => rp.is_active === 1)
+      .filter(rp => {
+        const { start, end } = getCurrentPeriodRange(rp.frequency);
+        return !currentMonthTransactions.some(
+          t => t.recurring_id === rp.id && t.date >= start && t.date <= end
+        );
+      })
+      .reduce((sum, rp) => sum + rp.amount, 0);
+  }, [recurringPayments, currentMonthTransactions]);
+
+  // Month progress for dashboard filter bar
+  const monthProgress = React.useMemo(() => {
+    if (filters.dateFilter !== 'current_month') return undefined;
+    const today = new Date();
+    return {
+      day: today.getDate(),
+      totalDays: new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate(),
+      spent: summary?.total_expenses ?? 0,
+      income: summary?.total_income ?? 0,
+    };
+  }, [filters.dateFilter, summary]);
+
   const refreshCurrentMonthTransactions = useCallback(async () => {
     const now = new Date();
     const start = format(startOfMonth(now), 'yyyy-MM-dd');
@@ -217,6 +295,10 @@ function AppInner() {
   const toast = useToast();
 
   const effectiveRule502030Mapping = rule502030Mapping ?? getDefaultRule502030Mapping();
+
+  const { data: ahorrosData } = useAhorros(rule502030Mapping);
+  const totalSavings = ahorrosData?.totalSavings ?? 0;
+  const streakMonths = ahorrosData?.streakMonths ?? 0;
 
   const handleAddCustomCategory = useCallback(
     async (type: 'expense' | 'income', name: string) => {
@@ -458,58 +540,69 @@ function AppInner() {
                   onCategoryFilter={setCategoryFilter}
                   onToggleQuickFilter={toggleQuickFilter}
                   showSegmentation={false}
+                  monthProgress={monthProgress}
                 />
 
-              {/* Summary Cards - Collapsible */}
+              {/* Summary Cards */}
+              <SummaryCards
+                summary={summary}
+                loading={loading}
+                onOpenForm={handleOpenFormWithType}
+                dateRange={dateRange}
+                pendingRecurringAmount={pendingRecurringAmount}
+                totalSavings={totalSavings}
+                projectedBalance={projectedBalance}
+              />
               
-              <SummaryCards summary={summary} loading={loading} onOpenForm={handleOpenFormWithType} />
-              
-                            {/* Recurring Payments Widget - Collapsible */}
-              {recurringPayments?.length > 0 && (                
-                  <RecurringPaymentsWidget
-                    recurringPayments={recurringPayments}
-                    currentMonthTransactions={currentMonthTransactions}
-                    categoryIcons={categoryIcons}
-                    onRegisterPayment={handleRegisterRecurringPayment}
-                    onDeleteRecurring={removeRecurring}
-                    onToggleRecurring={toggleRecurring}
+              {/* Charts + Rule 502030 */}
+              <div className="grid grid-cols-12 gap-4">
+                <div className="col-span-7 flex flex-col gap-4">
+                  <InsightsWidget
+                    currentTransactions={transactions}
+                    previousTransactions={previousTransactions}
+                    totalIncome={summary?.total_income ?? 0}
+                    totalSavings={totalSavings}
+                    streakMonths={streakMonths}
+                    projectedBalance={projectedBalance}
                   />
-                
-              )}
-
-
-              {/* Charts + Rule 502030 + Dollar - Collapsible */}
-              <CollapsibleCard
-                title="Gráficos y Análisis"
-                isOpen={expandedCards.charts}
-                onToggle={() => toggleCard('charts')}
-              >
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="col-span-2">
-                    <ExpenseChart
-                      transactions={transactions}
-                      byCategory={summary?.by_category ?? []}
-                    />
-                  </div>
-                  <div className="flex flex-col gap-4">
-                    <Rule502030
-                      transactions={transactions}
-                      totalIncome={summary?.total_income ?? 0}
-                      mapping={effectiveRule502030Mapping}
-                      percentages={rule502030Percentages}
-                      startDate={dateRange.start}
-                      endDate={dateRange.end}
-                    />
-                    <DollarRate
-                      rates={rates}
-                      loading={dollarLoading}
-                      error={dollarError}
-                      lastUpdate={lastUpdate}
-                      onRefresh={refreshDollar}
-                    />
-                  </div>
+                  <ExpenseChart
+                    transactions={transactions}
+                    byCategory={summary?.by_category ?? []}
+                  />
+                  <RecentTransactions
+                    transactions={transactions}
+                    categoryIcons={categoryIcons}
+                    onViewAll={() => setActiveView('transactions')}
+                  />
                 </div>
-              </CollapsibleCard>
+                <div className="col-span-5 flex flex-col gap-4">
+                  <Rule502030
+                    transactions={transactions}
+                    totalIncome={summary?.total_income ?? 0}
+                    mapping={effectiveRule502030Mapping}
+                    percentages={rule502030Percentages}
+                    startDate={dateRange.start}
+                    endDate={dateRange.end}
+                  />
+                  {recurringPayments?.length > 0 && (
+                    <RecurringPaymentsWidget
+                      recurringPayments={recurringPayments}
+                      currentMonthTransactions={currentMonthTransactions}
+                      categoryIcons={categoryIcons}
+                      onRegisterPayment={handleRegisterRecurringPayment}
+                      onDeleteRecurring={removeRecurring}
+                      onToggleRecurring={toggleRecurring}
+                    />
+                  )}
+                  <DollarRate
+                    rates={rates}
+                    loading={dollarLoading}
+                    error={dollarError}
+                    lastUpdate={lastUpdate}
+                    onRefresh={refreshDollar}
+                  />
+                </div>
+              </div>
 
 
               

@@ -1,98 +1,55 @@
 import React from 'react';
-import { TrendingUp, TrendingDown, Scale, PiggyBank } from 'lucide-react';
-import { Summary } from '../../types';
+import { TrendingUp, TrendingDown, Scale, PiggyBank, Wallet } from 'lucide-react';
+import { Summary, DateRange } from '../../types';
 import { formatARS } from '../../lib/export';
 import { InfoTooltip } from '../ui/InfoTooltip';
+import { format, parseISO } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 interface SummaryCardsProps {
   summary: Summary | null;
   loading: boolean;
   onOpenForm?: (type: 'income' | 'expense') => void;
+  dateRange?: DateRange;
+  pendingRecurringAmount?: number;
+  totalSavings?: number;
+  projectedBalance?: number | null;
 }
 
-function weeksRemainingInMonth(): number {
-  const now = new Date();
-  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-  const daysLeft = lastDay - now.getDate() + 1;
-  return Math.max(daysLeft / 7, 1 / 7);
+function formatDateLabel(dateStr: string): string {
+  try {
+    return format(parseISO(dateStr), 'd MMM yyyy', { locale: es });
+  } catch {
+    return dateStr;
+  }
 }
 
 export const SummaryCards = React.memo((props: SummaryCardsProps) => {
-  const { summary, loading, onOpenForm } = props;
+  const {
+    summary,
+    loading,
+    onOpenForm,
+    dateRange,
+    pendingRecurringAmount = 0,
+    totalSavings,
+    projectedBalance,
+  } = props;
+
   const balance = summary?.balance ?? 0;
   const balancePositive = balance >= 0;
-  const weeksLeft = weeksRemainingInMonth();
-  const perWeek = balance > 0 ? balance / weeksLeft : 0;
   const savingsRate = summary && summary.total_income > 0
     ? (summary.balance / summary.total_income) * 100
     : 0;
 
-  const cards = [
-    {
-      label: 'Ingresos',
-      value: summary?.total_income ?? 0,
-      icon: TrendingUp,
-      textColor: 'text-accent-green',
-      borderColor: 'border-accent-green/20',
-      bgColor: 'bg-accent-green/10',
-      iconBg: 'bg-accent-green/15',
-      glowColor: 'shadow-accent-green/10',
-      isPercentage: false,
-      prefix: '+',
-      actionType: 'income' as const,
-    },
-    {
-      label: 'Gastos',
-      value: summary?.total_expenses ?? 0,
-      icon: TrendingDown,
-      textColor: 'text-accent-red',
-      borderColor: 'border-accent-red/20',
-      bgColor: 'bg-accent-red/10',
-      iconBg: 'bg-accent-red/15',
-      glowColor: 'shadow-accent-red/10',
-      isPercentage: false,
-      prefix: '-',
-      actionType: 'expense' as const,
-    },
-    {
-      label: 'Balance',
-      value: balance,
-      icon: Scale,
-      textColor: balancePositive ? 'text-accent-blue' : 'text-accent-orange',
-      borderColor: balancePositive ? 'border-accent-blue/20' : 'border-accent-orange/20',
-      bgColor: balancePositive ? 'bg-accent-blue/10' : 'bg-accent-orange/10',
-      iconBg: balancePositive ? 'bg-accent-blue/15' : 'bg-accent-orange/15',
-      glowColor: balancePositive ? 'shadow-accent-blue/10' : 'shadow-accent-orange/10',
-      isPercentage: false,
-      prefix: balancePositive ? '+' : '-',
-      actionType: null,
-    },
-    {
-      label: 'Tasa de Ahorro',
-      value: savingsRate,
-      icon: PiggyBank,
-      textColor: savingsRate >= 20 ? 'text-accent-green' : savingsRate >= 10 ? 'text-accent-yellow' : 'text-accent-orange',
-      borderColor: savingsRate >= 20 ? 'border-accent-green/20' : savingsRate >= 10 ? 'border-accent-yellow/20' : 'border-accent-orange/20',
-      bgColor: savingsRate >= 20 ? 'bg-accent-green/10' : savingsRate >= 10 ? 'bg-accent-yellow/10' : 'bg-accent-orange/10',
-      iconBg: savingsRate >= 20 ? 'bg-accent-green/15' : savingsRate >= 10 ? 'bg-accent-yellow/15' : 'bg-accent-orange/15',
-      glowColor: 'shadow-accent-yellow/10',
-      isPercentage: true,
-      prefix: '',
-      actionType: null,
-    },
-  ];
+  const totalCols = totalSavings !== undefined ? 5 : 4;
 
   if (loading) {
     return (
-      <div className="grid grid-cols-4 gap-4">
-        {cards.map((_, i) => (
-          <div key={i} className="bg-bg-card border border-border-color rounded-xl p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="skeleton h-3 w-16" />
-              <div className="skeleton w-7 h-7 rounded-lg" />
-            </div>
-            <div className="skeleton h-6 w-28 mb-1" />
-            <div className="skeleton h-2.5 w-full mt-2 rounded-full" />
+      <div className="flex flex-row gap-3">
+        {Array.from({ length: totalCols }).map((_, i) => (
+          <div key={i} className="bg-bg-card border border-border-color rounded-xl px-3 py-2.5 w-40">
+            <div className="skeleton h-2.5 w-12 mb-2" />
+            <div className="skeleton h-5 w-24" />
           </div>
         ))}
       </div>
@@ -100,90 +57,130 @@ export const SummaryCards = React.memo((props: SummaryCardsProps) => {
   }
 
   return (
-    <div className="grid grid-cols-4 gap-4">
-      {cards.map((card, idx) => {
-        const Icon = card.icon;
-        const displayValue = card.isPercentage
-          ? Math.abs(card.value)
-          : Math.abs(card.value);
+    <div className="flex flex-col gap-1.5">
+      {/* Period label */}
+      {dateRange && (
+        <p className="text-xs text-text-secondary">
+          Período: {formatDateLabel(dateRange.start)} — {formatDateLabel(dateRange.end)}
+        </p>
+      )}
 
-        // Mini progress bar for savings rate
-        const showProgress = card.isPercentage;
-        const progressPct = Math.min(Math.abs(card.value), 100);
+      <div className="flex flex-row gap-3">
 
-        const isClickable = !!card.actionType && !!onOpenForm;
+        {/* Ingresos */}
+        <div
+          className="bg-bg-card border border-accent-green/20 rounded-xl px-3 py-2.5 card-hover cursor-pointer w-36 shrink-0"
+          onClick={() => onOpenForm?.('income')}
+          title="Agregar ingreso"
+        >
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[10px] font-medium text-text-secondary uppercase tracking-wider">Ingresos</span>
+            <div className="bg-accent-green/15 p-1 rounded-md">
+              <TrendingUp size={11} className="text-accent-green" />
+            </div>
+          </div>
+          <p className="text-base font-bold text-accent-green tabular-nums leading-tight">
+            +${formatARS(summary?.total_income ?? 0)}
+          </p>
+        </div>
 
-        return (
-          <div
-            key={card.label}
-            className={`
-              bg-bg-card border ${card.borderColor} rounded-xl p-4
-              card-hover animate-fade-in shadow-lg ${card.glowColor}
-              ${isClickable ? 'cursor-pointer' : ''}
-            `}
-            style={{ animationDelay: `${idx * 60}ms` }}
-            onClick={isClickable ? () => onOpenForm(card.actionType!) : undefined}
-            title={isClickable ? `Agregar ${card.label === 'Ingresos' ? 'ingreso' : 'gasto'}` : undefined}
-          >
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs font-medium text-text-secondary uppercase tracking-wider">
-                  {card.label}
-                </span>
-                {card.label === 'Balance' && (
-                  <InfoTooltip
-                    title="Balance"
-                    content="Es la diferencia entre tus ingresos y gastos.&#10;&#10;• Positivo: Ganaste dinero en el período&#10;• Negativo: Gastaste más de lo que ganaste&#10;• Cero: Ingreso y gasto se equilibraron"
-                  />
-                )}
-                {card.label === 'Tasa de Ahorro' && (
-                  <InfoTooltip
-                    title="Tasa de Ahorro"
-                    content="Porcentaje de tus ingresos que lograste ahorrar.&#10;&#10;• 20%+: Excelente&#10;• 10-20%: Muy bien&#10;• <10%: Considera reducir gastos&#10;&#10;Se calcula como: (Balance / Ingresos) × 100"
-                  />
-                )}
-              </div>
-              <div className={`${card.iconBg} p-1.5 rounded-lg`}>
-                <Icon size={14} className={card.textColor} />
+        {/* Gastos */}
+        <div
+          className="bg-bg-card border border-accent-red/20 rounded-xl px-3 py-2.5 card-hover cursor-pointer w-36 shrink-0"
+          onClick={() => onOpenForm?.('expense')}
+          title="Agregar gasto"
+        >
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[10px] font-medium text-text-secondary uppercase tracking-wider">Gastos</span>
+            <div className="bg-accent-red/15 p-1 rounded-md">
+              <TrendingDown size={11} className="text-accent-red" />
+            </div>
+          </div>
+          <p className="text-base font-bold text-accent-red tabular-nums leading-tight">
+            -${formatARS(summary?.total_expenses ?? 0)}
+          </p>
+        </div>
+
+        {/* Balance */}
+        <div className={`bg-bg-card border ${balancePositive ? 'border-accent-blue/20' : 'border-accent-orange/20'} rounded-xl px-3 py-2.5 card-hover w-44 shrink-0`}>
+          <div className="flex items-center justify-between mb-1.5">
+            <div className="flex items-center gap-1">
+              <span className="text-[10px] font-medium text-text-secondary uppercase tracking-wider">Balance</span>
+              <InfoTooltip
+                title="Balance"
+                content="Es la diferencia entre tus ingresos y gastos.&#10;&#10;• Positivo: Ganaste dinero en el período&#10;• Negativo: Gastaste más de lo que ganaste"
+              />
+            </div>
+            <div className={`${balancePositive ? 'bg-accent-blue/15' : 'bg-accent-orange/15'} p-1 rounded-md`}>
+              <Scale size={11} className={balancePositive ? 'text-accent-blue' : 'text-accent-orange'} />
+            </div>
+          </div>
+          <p className={`text-base font-bold tabular-nums leading-tight ${balancePositive ? 'text-accent-blue' : 'text-accent-orange'}`}>
+            {balancePositive ? '+' : '-'}${formatARS(Math.abs(balance))}
+          </p>
+          {pendingRecurringAmount > 0 && (
+            <p className="text-[10px] text-accent-orange mt-0.5 tabular-nums leading-tight">
+              Quedan ${formatARS(pendingRecurringAmount)} en recurrentes
+            </p>
+          )}
+          {projectedBalance !== null && projectedBalance !== undefined && (
+            <p className={`text-[10px] mt-0.5 tabular-nums leading-tight ${projectedBalance >= 0 ? 'text-text-secondary' : 'text-accent-orange'}`}>
+              Proyectado: {projectedBalance >= 0 ? '+' : '-'}${formatARS(Math.abs(projectedBalance))}
+            </p>
+          )}
+        </div>
+
+        {/* Tasa de Ahorro */}
+        <div className={`bg-bg-card border ${savingsRate >= 20 ? 'border-accent-green/20' : savingsRate >= 10 ? 'border-accent-yellow/20' : 'border-accent-orange/20'} rounded-xl px-3 py-2.5 card-hover w-36 shrink-0`}>
+          <div className="flex items-center justify-between mb-1.5">
+            <div className="flex items-center gap-1">
+              <span className="text-[10px] font-medium text-text-secondary uppercase tracking-wider">Tasa Ahorro</span>
+              <InfoTooltip
+                title="Tasa de Ahorro"
+                content="Porcentaje de tus ingresos que lograste ahorrar.&#10;&#10;• 20%+: Excelente&#10;• 10-20%: Muy bien&#10;• <10%: Considera reducir gastos"
+              />
+            </div>
+            <div className={`${savingsRate >= 20 ? 'bg-accent-green/15' : savingsRate >= 10 ? 'bg-accent-yellow/15' : 'bg-accent-orange/15'} p-1 rounded-md`}>
+              <PiggyBank size={11} className={savingsRate >= 20 ? 'text-accent-green' : savingsRate >= 10 ? 'text-accent-yellow' : 'text-accent-orange'} />
+            </div>
+          </div>
+          <p className={`text-base font-bold tabular-nums leading-tight ${savingsRate >= 20 ? 'text-accent-green' : savingsRate >= 10 ? 'text-accent-yellow' : 'text-accent-orange'}`}>
+            {Math.abs(savingsRate).toFixed(1)}%
+          </p>
+          <div className="mt-1.5">
+            <div className="h-1 bg-bg-secondary rounded-full overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-700"
+                style={{
+                  width: `${Math.min(Math.abs(savingsRate), 100)}%`,
+                  background: savingsRate >= 20
+                    ? 'linear-gradient(90deg, #22c55e, #10b981)'
+                    : savingsRate >= 10
+                    ? 'linear-gradient(90deg, #eab308, #f97316)'
+                    : 'linear-gradient(90deg, #ef4444, #f97316)',
+                }}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Total Ahorrado */}
+        {totalSavings !== undefined && (
+          <div className="bg-bg-card border border-accent-green/20 rounded-xl px-3 py-2.5 card-hover w-36 shrink-0">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[10px] font-medium text-text-secondary uppercase tracking-wider">Total Ahorrado</span>
+              <div className="bg-accent-green/15 p-1 rounded-md">
+                <Wallet size={11} className="text-accent-green" />
               </div>
             </div>
-
-            <p className={`text-xl font-bold ${card.textColor} tabular-nums`}>
-              {card.isPercentage
-                ? `${displayValue.toFixed(1)}%`
-                : `${card.prefix}$${formatARS(displayValue)}`
-              }
+            <p className="text-base font-bold text-accent-green tabular-nums leading-tight">
+              ${formatARS(totalSavings)}
             </p>
-
-            {card.label === 'Balance' && balance > 0 && (
-              <p className="text-xs text-text-secondary mt-1 tabular-nums">
-                <span className="text-text-primary font-semibold">${formatARS(Math.round(perWeek))}</span> por semana
-              </p>
-            )}
-
-            {showProgress && (
-              <div className="mt-2.5">
-                <div className="h-1 bg-bg-secondary rounded-full overflow-hidden">
-                  <div
-                    className="h-full rounded-full transition-all duration-700"
-                    style={{
-                      width: `${progressPct}%`,
-                      background: progressPct >= 20
-                        ? 'linear-gradient(90deg, #22c55e, #10b981)'
-                        : progressPct >= 10
-                        ? 'linear-gradient(90deg, #eab308, #f97316)'
-                        : 'linear-gradient(90deg, #ef4444, #f97316)',
-                    }}
-                  />
-                </div>
-                <p className="text-xs text-text-secondary mt-1">
-                  {progressPct >= 20 ? 'Excelente ahorro' : progressPct >= 10 ? 'Ahorro moderado' : 'Ahorro bajo'}
-                </p>
-              </div>
-            )}
+            <p className="text-[10px] text-text-secondary mt-0.5">Acumulado total</p>
           </div>
-        );
-      })}
+        )}
+
+      </div>
     </div>
   );
 });
