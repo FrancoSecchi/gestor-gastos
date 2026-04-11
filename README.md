@@ -1,12 +1,69 @@
 # Gastos Personales
 
-App de escritorio para gestionar gastos e ingresos personales, con análisis de la regla 50/30/20, cotización del dólar en tiempo real y análisis por IA con Claude.
+App de escritorio para gestionar gastos e ingresos personales con análisis avanzado: regla 50/30/20, cotización del dólar en tiempo real, seguimiento de ahorros, gestión de contratos de vivienda y pagos recurrentes.
 
 ---
 
-## Requisitos previos
+## Características
 
-### Node.js y Rust (ambas plataformas)
+- **Regla 50/30/20**: Clasifica automáticamente gastos en Necesidades, Deseos y Ahorro/Inversión
+- **Cotización del dólar**: Actualización automática cada 30 minutos
+- **Gestión de ahorros**: Seguimiento de metas y depósitos
+- **Contratos de vivienda**: Control de alquiler y vencimientos
+- **Pagos recurrentes**: Registra y controla gastos periódicos
+- **Gestión de categorías**: Categorías predefinidas + personalizadas
+- **Exportación**: Descarga tus datos en formato Excel
+- **Visor de recibos**: Almacena evidencia de transacciones
+- **Base de datos local**: SQLite - tus datos permanecen en tu dispositivo
+
+---
+
+## Instalación
+
+### Windows
+
+1. Descarga el instalador desde las [Releases](https://github.com/tuusuario/gastos-personales/releases)
+2. Ejecuta el archivo `.exe` o `.msi` y sigue las instrucciones
+3. ¡Listo! La app se abrirá automáticamente
+
+### Linux
+
+1. Descarga el archivo `.AppImage` desde las [Releases](https://github.com/tuusuario/gastos-personales/releases)
+2. Dale permisos de ejecución:
+   ```bash
+   chmod +x GastosPersonales_*.AppImage
+   ```
+3. Ejecuta:
+   ```bash
+   ./GastosPersonales_*.AppImage
+   ```
+
+O instala desde tu repositorio de paquetes (Debian/Ubuntu):
+```bash
+sudo apt install ./gastos-personales_*.deb
+```
+
+### macOS
+
+Próximamente...
+
+---
+
+## Dónde están tus datos
+
+Tu base de datos (SQLite) se guarda automáticamente en:
+
+- **Linux**: `~/.local/share/gastos-personales/cache/gastos.db`
+- **Windows**: `%APPDATA%/gastos-personales/cache/gastos.db`
+- **macOS**: `~/Library/Application Support/gastos-personales/cache/gastos.db`
+
+> **Tus datos siempre permanecen en tu dispositivo. No usamos servidores.**
+
+---
+
+## Para Desarrolladores
+
+### Requisitos previos
 
 - **Node.js** >= 18: https://nodejs.org
 - **Rust** (última versión estable): https://rustup.rs
@@ -18,9 +75,9 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
 ---
 
-## Compilar en Linux
+### Compilar en Linux
 
-### 1. Dependencias del sistema
+#### 1. Dependencias del sistema
 
 **Ubuntu / Debian:**
 ```bash
@@ -60,20 +117,20 @@ sudo pacman -S --needed \
   libappindicator-gtk3
 ```
 
-### 2. Instalar dependencias Node
+#### 2. Instalar dependencias Node
 
 ```bash
 cd gastos-personales
 npm install
 ```
 
-### 3. Compilar
+#### 3. Compilar
 
 ```bash
 npm run tauri build
 ```
 
-### 4. Ejecutable generado
+#### 4. Ejecutable generado
 
 El instalador y el binario se generan en:
 ```
@@ -91,9 +148,9 @@ chmod +x GastosPersonales_*.AppImage
 
 ---
 
-## Compilar en Windows
+### Compilar en Windows
 
-### 1. Dependencias del sistema
+#### 1. Dependencias del sistema
 
 - Instalar **Microsoft Visual C++ Build Tools** (si no tenés Visual Studio):
   https://visualstudio.microsoft.com/visual-cpp-build-tools/
@@ -103,20 +160,20 @@ chmod +x GastosPersonales_*.AppImage
 - Instalar **WebView2 Runtime** (ya incluido en Windows 11, en Windows 10 puede requerirse):
   https://developer.microsoft.com/microsoft-edge/webview2/
 
-### 2. Instalar dependencias Node
+#### 2. Instalar dependencias Node
 
 ```powershell
 cd gastos-personales
 npm install
 ```
 
-### 3. Compilar
+#### 3. Compilar
 
 ```powershell
 npm run tauri build
 ```
 
-### 4. Ejecutable generado
+#### 4. Ejecutable generado
 
 ```
 src-tauri/target/release/bundle/
@@ -131,9 +188,9 @@ src-tauri/target/release/gastos-personales.exe
 
 ---
 
-## Compilar para Windows desde Linux (cross-compilation)
+### Compilar para Windows desde Linux (cross-compilation)
 
-### Requisitos previos
+#### Requisitos previos
 
 Esta es la forma más directa, pero requiere configurar el toolchain de Windows:
 
@@ -153,7 +210,7 @@ sudo dnf install -y mingw64-gcc mingw64-gcc-c++ mingw64-binutils
 sudo pacman -S mingw-w64-gcc mingw-w64-binutils
 ```
 
-### Compilar
+#### Compilar
 
 ```bash
 # Opción 1: Compilar para Windows (sin instalador, solo binario)
@@ -165,13 +222,13 @@ cargo install cargo-xwin
 npm run tauri build -- --target x86_64-pc-windows-msvc
 ```
 
-### Ubicación del ejecutable
+#### Ubicación del ejecutable
 
 ```
 src-tauri/target/x86_64-pc-windows-gnu/release/gastos-personales.exe
 ```
 
-### Alternativa: Visual Studio Build Tools (recomendado)
+#### Alternativa: Visual Studio Build Tools (recomendado)
 
 Para mayor compatibilidad, instala **Visual Studio Build Tools 2022**:
 
@@ -186,10 +243,9 @@ npm run tauri build
 > **Nota:** La forma más confiable es compilar nativo directamente en Windows.
 > La cross-compilation desde Linux funciona pero puede tener limitaciones con ciertos plugins.
 
-
 ---
 
-## Modo desarrollo (sin compilar)
+### Modo desarrollo (sin compilar)
 
 Para ejecutar la app en modo dev con hot-reload:
 
@@ -197,7 +253,7 @@ Para ejecutar la app en modo dev con hot-reload:
 npm run tauri dev
 ```
 
-### Script rápido para compilar Windows desde Linux
+#### Script rápido para compilar Windows desde Linux
 
 Si estás en Linux y quieres compilar directamente para Windows:
 
@@ -213,19 +269,7 @@ Este script:
 
 ---
 
-## Acceso a la base de datos
-
-La app usa **SQLite** para almacenar transacciones y configuración. La base de datos se encuentra en:
-
-### Ubicación del archivo
-
-```
-~/.local/share/gastos-personales/cache/gastos.db  # Linux
-~/Library/Application Support/gastos-personales/cache/gastos.db  # macOS
-%APPDATA%/gastos-personales/cache/gastos.db  # Windows
-```
-
-### Acceder vía CLI (SQLite)
+### Acceso a la base de datos (SQLite)
 
 Instalar `sqlite3` si no lo tienes:
 
@@ -276,17 +320,6 @@ SELECT * FROM transactions;
 
 ---
 
-## Configuración inicial
-
-Al iniciar la app por primera vez:
-
-1. Ir a **Configuración** (ícono de engranaje en el sidebar)
-2. Ingresar la **API Key de Claude** (Anthropic) para habilitar el análisis de gastos con IA
-   - Obtener en: https://console.anthropic.com
-3. La cotización del dólar se actualiza automáticamente cada 30 minutos desde `dolarapi.com`
-
----
-
 ## Estructura del proyecto
 
 ```
@@ -294,7 +327,7 @@ gastos-personales/
 ├── src/                    # Frontend React + TypeScript
 │   ├── components/         # Componentes UI
 │   ├── hooks/              # Custom hooks (transacciones, dólar, filtros)
-│   ├── lib/                # DB, Claude API, exportación
+│   ├── lib/                # DB, exportación, utilidades
 │   └── types/              # Tipos TypeScript
 ├── src-tauri/              # Backend Rust (Tauri)
 │   ├── src/                # Comandos Rust y lógica nativa
@@ -314,5 +347,4 @@ gastos-personales/
 | Gráficos | Recharts |
 | Base de datos | SQLite (via tauri-plugin-sql) |
 | Exportación | xlsx |
-| IA | Claude API (Anthropic) |
 | Cotización USD | dolarapi.com |
