@@ -5,8 +5,47 @@
     <link rel="icon" type="image/png" href="/icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Gastos Personales</title>
+    <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+        background-color: #0f1117;
+        height: 100%;
+      }
+      #root {
+        height: 100%;
+      }
+      #splash {
+        position: fixed;
+        inset: 0;
+        background-color: #0f1117;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        transition: opacity 0.25s ease;
+      }
+      #splash.hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+      .splash-spinner {
+        width: 32px;
+        height: 32px;
+        border: 2.5px solid #2d3148;
+        border-top-color: #3b82f6;
+        border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+      }
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+    </style>
   </head>
   <body>
+    <div id="splash">
+      <div class="splash-spinner"></div>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
