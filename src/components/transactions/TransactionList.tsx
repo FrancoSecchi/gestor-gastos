@@ -20,6 +20,7 @@ interface TransactionListProps {
   onExportExcel: () => void;
   onExportClaude: () => void;
   onMarkRecurring: (tx: Transaction, frequency: RecurrenceFrequency) => Promise<void>;
+  onUnmarkRecurring: (tx: Transaction) => Promise<void>;
 }
 
 function getDateGroup(dateStr: string): string {
@@ -60,10 +61,12 @@ export const TransactionList = React.memo((props: TransactionListProps) => {
     onExportExcel,
     onExportClaude,
     onMarkRecurring,
+    onUnmarkRecurring,
   } = props;
   const [viewingReceipt, setViewingReceipt] = useState<string | null>(null);
   const [markingId, setMarkingId] = useState<string | null>(null);
   const [markingSaving, setMarkingSaving] = useState(false);
+  const [unmarkingId, setUnmarkingId] = useState<string | null>(null);
 
   // Apply local filters
   const filtered = useMemo(() => transactions.filter(tx => {
@@ -301,6 +304,28 @@ export const TransactionList = React.memo((props: TransactionListProps) => {
                               <X size={11} />
                             </button>
                           </div>
+                        ) : unmarkingId === tx.id ? (
+                          /* Unmark confirmation */
+                          <div className="flex items-center justify-end gap-1.5 animate-fade-in">
+                            <span className="text-xs text-text-secondary">¿Quitar de recurrentes?</span>
+                            <button
+                              onClick={async () => {
+                                setMarkingSaving(true);
+                                try { await onUnmarkRecurring(tx); }
+                                finally { setMarkingSaving(false); setUnmarkingId(null); }
+                              }}
+                              disabled={markingSaving}
+                              className="px-2 py-0.5 rounded-md text-xs border border-accent-red/40 text-accent-red hover:bg-accent-red/10 disabled:opacity-50 transition-all duration-150"
+                            >
+                              Quitar
+                            </button>
+                            <button
+                              onClick={() => setUnmarkingId(null)}
+                              className="p-1 rounded-md text-text-secondary hover:text-text-primary transition-colors"
+                            >
+                              <X size={11} />
+                            </button>
+                          </div>
                         ) : (
                           /* Normal action buttons */
                           <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all duration-150">
@@ -313,7 +338,15 @@ export const TransactionList = React.memo((props: TransactionListProps) => {
                                 <Paperclip size={12} />
                               </button>
                             )}
-                            {!tx.recurring_id && (
+                            {tx.recurring_id ? (
+                              <button
+                                onClick={() => setUnmarkingId(tx.id)}
+                                className="p-1.5 rounded-lg text-accent-purple/60 hover:text-accent-red hover:bg-accent-red/10 transition-all duration-150"
+                                title="Eliminar de recurrentes"
+                              >
+                                <RefreshCw size={12} />
+                              </button>
+                            ) : (
                               <button
                                 onClick={() => setMarkingId(tx.id)}
                                 className="p-1.5 rounded-lg text-text-secondary hover:text-accent-purple hover:bg-accent-purple/10 transition-all duration-150"

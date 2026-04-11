@@ -270,6 +270,17 @@ function AppInner() {
     }
   }, [addTransaction, editTransaction, toast, refreshRecurring, refreshCurrentMonthTransactions, refreshTransactions, dateRange.start, dateRange.end]);
 
+  const handleUnmarkRecurring = useCallback(async (tx: Transaction) => {
+    try {
+      await editTransaction({ ...tx, recurring_id: null });
+      await refreshTransactions(dateRange.start, dateRange.end);
+      toast.success('Recurrente eliminado', 'La transacción ya no está vinculada a ningún pago recurrente.');
+    } catch (err) {
+      await logError('App.handleUnmarkRecurring', err);
+      toast.error('Error', getReadableError(err));
+    }
+  }, [editTransaction, refreshTransactions, dateRange.start, dateRange.end, toast]);
+
   const handleMarkRecurring = useCallback(async (tx: Transaction, frequency: RecurrenceFrequency) => {
     try {
       const recurring = await createRecurringPayment({
@@ -495,6 +506,7 @@ function AppInner() {
                   onExportExcel={handleExportExcel}
                   onExportClaude={handleExportClaude}
                   onMarkRecurring={handleMarkRecurring}
+                  onUnmarkRecurring={handleUnmarkRecurring}
                 />
               </div>
             </div>
