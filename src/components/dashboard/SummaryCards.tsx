@@ -2,6 +2,7 @@ import React from 'react';
 import { TrendingUp, TrendingDown, Scale, PiggyBank } from 'lucide-react';
 import { Summary } from '../../types';
 import { formatARS } from '../../lib/export';
+import { InfoTooltip } from '../ui/InfoTooltip';
 
 interface SummaryCardsProps {
   summary: Summary | null;
@@ -125,9 +126,23 @@ export const SummaryCards = React.memo((props: SummaryCardsProps) => {
             title={isClickable ? `Agregar ${card.label === 'Ingresos' ? 'ingreso' : 'gasto'}` : undefined}
           >
             <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-medium text-text-secondary uppercase tracking-wider">
-                {card.label}
-              </span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-medium text-text-secondary uppercase tracking-wider">
+                  {card.label}
+                </span>
+                {card.label === 'Balance' && (
+                  <InfoTooltip
+                    title="Balance"
+                    content="Es la diferencia entre tus ingresos y gastos.&#10;&#10;• Positivo: Ganaste dinero en el período&#10;• Negativo: Gastaste más de lo que ganaste&#10;• Cero: Ingreso y gasto se equilibraron"
+                  />
+                )}
+                {card.label === 'Tasa de Ahorro' && (
+                  <InfoTooltip
+                    title="Tasa de Ahorro"
+                    content="Porcentaje de tus ingresos que lograste ahorrar.&#10;&#10;• 20%+: Excelente&#10;• 10-20%: Muy bien&#10;• <10%: Considera reducir gastos&#10;&#10;Se calcula como: (Balance / Ingresos) × 100"
+                  />
+                )}
+              </div>
               <div className={`${card.iconBg} p-1.5 rounded-lg`}>
                 <Icon size={14} className={card.textColor} />
               </div>

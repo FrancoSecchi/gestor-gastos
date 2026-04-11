@@ -5,6 +5,7 @@ import { formatARS } from '../../lib/export';
 import { calculateRule502030 } from '../../lib/rule502030';
 import { Rule502030Mapping } from '../../lib/rule502030Mapping';
 import { differenceInDays, parseISO, isAfter, isBefore, startOfDay } from 'date-fns';
+import { InfoTooltip } from '../ui/InfoTooltip';
 
 interface Rule502030Props {
   transactions: Transaction[];
@@ -109,7 +110,41 @@ export const Rule502030: React.FC<Rule502030Props> = ({ transactions, totalIncom
   return (
     <div className="bg-bg-card border border-border-color rounded-xl p-4">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold text-text-primary">Regla 50/30/20</h3>
+        <div className="flex items-center gap-1.5">
+          <h3 className="text-sm font-semibold text-text-primary">Regla 50/30/20</h3>
+          <InfoTooltip
+            title="Regla 50/30/20"
+            content={
+              <div className="space-y-3">
+                <div>
+                  <p className="font-semibold text-text-primary mb-1">Cómo funciona</p>
+                  <p>Divide tus ingresos en tres grupos con límites recomendados:</p>
+                  <ul className="mt-1.5 space-y-0.5 pl-2">
+                    <li><span className="text-text-primary font-medium">50% Necesidades</span> — gastos fijos e indispensables (vivienda, comida, transporte, salud).</li>
+                    <li><span className="text-text-primary font-medium">30% Deseos</span> — gastos opcionales (entretenimiento, ropa, salidas).</li>
+                    <li><span className="text-text-primary font-medium">20% Ahorro/Inversión</span> — dinero que no gastás en el período.</li>
+                  </ul>
+                  <p className="mt-1.5">Podés reasignar cada categoría a un grupo desde la sección de configuración.</p>
+                </div>
+                <div>
+                  <p className="font-semibold text-text-primary mb-1">Barra de progreso</p>
+                  <p>Muestra cuánto del presupuesto de cada grupo ya usaste. Se vuelve naranja cuando superás el límite asignado.</p>
+                </div>
+                <div>
+                  <p className="font-semibold text-text-primary mb-1">Marcador de proyeccion</p>
+                  <p>La línea vertical sobre la barra estima dónde terminarás el período si mantenés el ritmo actual de gasto.</p>
+                  <p className="mt-1">Fórmula: <span className="text-text-primary">gasto actual ÷ días transcurridos × días totales del período.</span></p>
+                  <p className="mt-1">Naranja significa que vas a exceder el presupuesto; gris indica que cerrarás dentro del límite.</p>
+                </div>
+                <div>
+                  <p className="font-semibold text-text-primary mb-1">Salud financiera</p>
+                  <p>Puntaje de 0 a 100 que resume cuánto te alejás de los límites. Comienza en 100 y descuenta proporcionalmente por cada grupo excedido.</p>
+                  <p className="mt-1">80–100: Excelente · 50–79: Regular · 0–49: Mejorable.</p>
+                </div>
+              </div>
+            }
+          />
+        </div>
         <span className="text-xs text-text-secondary tabular-nums">
           ${formatARS(totalIncome)} ingreso
         </span>

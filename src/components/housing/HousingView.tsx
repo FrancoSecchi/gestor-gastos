@@ -13,6 +13,7 @@ import { format, parseISO, addMonths, subMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Home, Plus, Pencil, Trash2, Loader2, AlertCircle, CheckCircle, RefreshCw } from 'lucide-react';
 import { DatePicker } from '../ui/DatePicker';
+import { InfoTooltip } from '../ui/InfoTooltip';
 import {
   HousingContract,
   HousingAdjustment,
@@ -884,7 +885,13 @@ export const HousingView: React.FC<HousingViewProps> = ({ contract, loading, onS
 
       {/* Gráfico */}
       <div className="bg-bg-card border border-border-color rounded-xl p-5">
-        <h3 className="text-sm font-semibold text-text-primary mb-4">Evolución del alquiler</h3>
+        <div className="flex items-center gap-1.5 mb-4">
+          <h3 className="text-sm font-semibold text-text-primary">Evolución del alquiler</h3>
+          <InfoTooltip
+            title="Evolución del Alquiler"
+            content="Muestra cómo cambió el valor de tu alquiler en el tiempo.&#10;&#10;• Línea azul: Ajustes registrados&#10;• Línea púrpura: Proyección futura&#10;• Eje Y: Monto del alquiler&#10;• Eje X: Fechas de ajuste&#10;&#10;Actualiza los índices (ICL/IPC) para ver cambios."
+          />
+        </div>
         {chartData.length > 1 ? (
           <ResponsiveContainer width="100%" height={200}>
             <AreaChart data={chartData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
