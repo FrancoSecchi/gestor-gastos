@@ -1,10 +1,12 @@
 import React, { useMemo, useState } from 'react';
-import { Edit2, Trash2, Plus, Download, FileJson, PackageOpen, Paperclip } from 'lucide-react';
-import { Transaction, FilterState, getCategoryColor } from '../../types';
+import { Edit2, Trash2, Plus, Download, FileJson, PackageOpen, Paperclip, RefreshCw, X } from 'lucide-react';
+import { Transaction, FilterState, getCategoryColor, RecurrenceFrequency, RECURRENCE_LABELS } from '../../types';
 import { formatARS } from '../../lib/export';
 import { ReceiptViewer } from './ReceiptViewer';
 import { format, parseISO, isToday, isYesterday, isThisWeek, isThisMonth } from 'date-fns';
 import { es } from 'date-fns/locale';
+
+const FREQUENCIES = Object.entries(RECURRENCE_LABELS) as [RecurrenceFrequency, string][];
 
 interface TransactionListProps {
   transactions: Transaction[];
@@ -17,6 +19,7 @@ interface TransactionListProps {
   onClearAll: () => void;
   onExportExcel: () => void;
   onExportClaude: () => void;
+  onMarkRecurring: (tx: Transaction, frequency: RecurrenceFrequency) => Promise<void>;
 }
 
 function getDateGroup(dateStr: string): string {
@@ -56,8 +59,11 @@ export const TransactionList = React.memo((props: TransactionListProps) => {
     onClearAll,
     onExportExcel,
     onExportClaude,
+    onMarkRecurring,
   } = props;
   const [viewingReceipt, setViewingReceipt] = useState<string | null>(null);
+  const [markingId, setMarkingId] = useState<string | null>(null);
+  const [markingSaving, setMarkingSaving] = useState(false);
 
   // Apply local filters
   const filtered = useMemo(() => transactions.filter(tx => {
@@ -267,31 +273,71 @@ export const TransactionList = React.memo((props: TransactionListProps) => {
                       </td>
 
                       <td className="px-4 py-2.5 text-right">
-                        <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all duration-150">
-                          {tx.receipt_path && (
+                        {markingId === tx.id ? (
+                          /* Frequency picker inline */
+                          <div className="flex items-center justify-end gap-1 flex-wrap animate-fade-in">
+                            {FREQUENCIES.map(([freq, label]) => (
+                              <button
+                                key={freq}
+                                disabled={markingSaving}
+                                onClick={async () => {
+                                  setMarkingSaving(true);
+                                  try {
+                                    await onMarkRecurring(tx, freq);
+                                  } finally {
+                                    setMarkingSaving(false);
+                                    setMarkingId(null);
+                                  }
+                                }}
+                                className="px-2 py-0.5 rounded-md text-xs border border-border-color bg-bg-secondary text-text-secondary hover:border-accent-blue/50 hover:text-accent-blue hover:bg-accent-blue/10 disabled:opacity-50 transition-all duration-150 whitespace-nowrap"
+                              >
+                                {label}
+                              </button>
+                            ))}
                             <button
-                              onClick={() => setViewingReceipt(tx.receipt_path!)}
-                              className="p-1.5 rounded-lg text-accent-blue hover:bg-accent-blue/10 transition-all duration-150"
-                              title="Ver comprobante"
+                              onClick={() => setMarkingId(null)}
+                              className="p-1 rounded-md text-text-secondary hover:text-text-primary transition-colors"
                             >
-                              <Paperclip size={12} />
+                              <X size={11} />
                             </button>
-                          )}
-                          <button
-                            onClick={() => onEdit(tx)}
-                            className="p-1.5 rounded-lg text-text-secondary hover:text-accent-blue hover:bg-accent-blue/10 transition-all duration-150"
-                            title="Editar"
-                          >
-                            <Edit2 size={12} />
-                          </button>
-                          <button
-                            onClick={() => onDelete(tx.id)}
-                            className="p-1.5 rounded-lg transition-all duration-150 text-text-secondary hover:text-accent-red hover:bg-accent-red/10"
-                            title="Eliminar"
-                          >
-                            <Trash2 size={12} />
-                          </button>
-                        </div>
+                          </div>
+                        ) : (
+                          /* Normal action buttons */
+                          <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all duration-150">
+                            {tx.receipt_path && (
+                              <button
+                                onClick={() => setViewingReceipt(tx.receipt_path!)}
+                                className="p-1.5 rounded-lg text-accent-blue hover:bg-accent-blue/10 transition-all duration-150"
+                                title="Ver comprobante"
+                              >
+                                <Paperclip size={12} />
+                              </button>
+                            )}
+                            {!tx.recurring_id && (
+                              <button
+                                onClick={() => setMarkingId(tx.id)}
+                                className="p-1.5 rounded-lg text-text-secondary hover:text-accent-purple hover:bg-accent-purple/10 transition-all duration-150"
+                                title="Marcar como recurrente"
+                              >
+                                <RefreshCw size={12} />
+                              </button>
+                            )}
+                            <button
+                              onClick={() => onEdit(tx)}
+                              className="p-1.5 rounded-lg text-text-secondary hover:text-accent-blue hover:bg-accent-blue/10 transition-all duration-150"
+                              title="Editar"
+                            >
+                              <Edit2 size={12} />
+                            </button>
+                            <button
+                              onClick={() => onDelete(tx.id)}
+                              className="p-1.5 rounded-lg transition-all duration-150 text-text-secondary hover:text-accent-red hover:bg-accent-red/10"
+                              title="Eliminar"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   ))}

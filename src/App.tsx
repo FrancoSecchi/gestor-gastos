@@ -270,6 +270,25 @@ function AppInner() {
     }
   }, [addTransaction, editTransaction, toast, refreshRecurring, refreshCurrentMonthTransactions, refreshTransactions, dateRange.start, dateRange.end]);
 
+  const handleMarkRecurring = useCallback(async (tx: Transaction, frequency: RecurrenceFrequency) => {
+    try {
+      const recurring = await createRecurringPayment({
+        type: tx.type,
+        amount: tx.amount,
+        category: tx.category,
+        subcategory: tx.subcategory,
+        description: tx.description,
+        frequency,
+      });
+      await editTransaction({ ...tx, recurring_id: recurring.id });
+      await Promise.all([refreshRecurring(), refreshTransactions(dateRange.start, dateRange.end), refreshCurrentMonthTransactions()]);
+      toast.success('Pago recurrente creado', `Marcado como ${RECURRENCE_LABELS[frequency].toLowerCase()}.`);
+    } catch (err) {
+      await logError('App.handleMarkRecurring', err);
+      toast.error('Error', getReadableError(err));
+    }
+  }, [editTransaction, refreshRecurring, refreshTransactions, refreshCurrentMonthTransactions, dateRange.start, dateRange.end, toast]);
+
   const handleEdit = useCallback((tx: Transaction) => {
     setEditingTx(tx);
     setShowForm(true);
@@ -475,6 +494,7 @@ function AppInner() {
                   onClearAll={handleClearAllData}
                   onExportExcel={handleExportExcel}
                   onExportClaude={handleExportClaude}
+                  onMarkRecurring={handleMarkRecurring}
                 />
               </div>
             </div>
