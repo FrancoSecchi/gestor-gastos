@@ -4,9 +4,11 @@ import { DollarRate, Summary } from '../../types';
 import { formatARS } from '../../lib/export';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { InfoTooltip } from '../ui/InfoTooltip';
 
 interface HeaderProps {
   title: string;
+  tooltipContent?: React.ReactNode;
   dollarRates: DollarRate[];
   dollarLoading: boolean;
   dollarError: string | null;
@@ -30,6 +32,7 @@ function timeAgo(date: Date): string {
 
 export const Header: React.FC<HeaderProps> = ({
   title,
+  tooltipContent,
   dollarRates,
   dollarLoading,
   dollarError,
@@ -63,7 +66,12 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="flex items-center justify-between px-6 py-3 bg-bg-secondary border-b border-border-color">
       <div className="flex items-center gap-4">
-        <h1 className="text-base font-semibold text-text-primary">{title}</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-base font-semibold text-text-primary">{title}</h1>
+          {tooltipContent && (
+            <InfoTooltip title={title} content={tooltipContent} />
+          )}
+        </div>
 
         {/* Balance badge */}
         {summary && (

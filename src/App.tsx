@@ -115,6 +115,43 @@ class HousingErrorBoundary extends Component<{ children: ReactNode }, { hasError
   }
 }
 
+const TRANSACTIONS_TOOLTIP = (
+  <div className="space-y-3">
+    <div>
+      <p className="font-semibold text-text-primary mb-1">Agregar transacciones</p>
+      <p>Usá el botón <span className="text-text-primary font-medium">+ Nueva</span> para registrar un ingreso, gasto o transferencia a ahorro. Podés adjuntar un comprobante (PDF o imagen) en el formulario.</p>
+    </div>
+    <div>
+      <p className="font-semibold text-text-primary mb-1">Filtros y segmentación</p>
+      <ul className="space-y-0.5 pl-2">
+        <li><span className="text-text-primary font-medium">Fecha</span> — filtrá por semana, mes, trimestre, año o rango personalizado.</li>
+        <li><span className="text-text-primary font-medium">Tipo</span> — mostrá solo gastos, solo ingresos, o todos.</li>
+        <li><span className="text-text-primary font-medium">Categoría</span> — tocá cualquier categoría para ver solo esas transacciones.</li>
+      </ul>
+    </div>
+    <div>
+      <p className="font-semibold text-text-primary mb-1">Filtros rápidos</p>
+      <ul className="space-y-0.5 pl-2">
+        <li><span className="text-text-primary font-medium">↺ Recurrentes</span> — solo transacciones vinculadas a un pago recurrente.</li>
+        <li><span className="text-text-primary font-medium">⇆ Ahorros</span> — solo transferencias hacia o desde tus ahorros.</li>
+        <li><span className="text-text-primary font-medium">📎 Con comprobante</span> — solo las que tienen archivo adjunto.</li>
+      </ul>
+    </div>
+    <div>
+      <p className="font-semibold text-text-primary mb-1">Pagos recurrentes</p>
+      <p>Al hacer hover en una fila aparece el ícono <span className="text-text-primary font-medium">↺</span>. Si la transacción no es recurrente, podés marcarla eligiendo la frecuencia. Si ya lo es, el mismo ícono te permite desmarcarla.</p>
+    </div>
+    <div>
+      <p className="font-semibold text-text-primary mb-1">Comprobantes</p>
+      <p>Si una transacción tiene archivo adjunto, aparece el ícono <span className="text-text-primary font-medium">📎</span> en la fila. Tocalo para verlo.</p>
+    </div>
+    <div>
+      <p className="font-semibold text-text-primary mb-1">Exportar</p>
+      <p><span className="text-text-primary font-medium">Excel</span> descarga las transacciones del período en una planilla. <span className="text-text-primary font-medium">Markdown</span> genera un resumen para analizar con IA.</p>
+    </div>
+  </div>
+);
+
 function AppInner() {
   const [activeView, setActiveView] = useState<ActiveView>('dashboard');
   const [showForm, setShowForm] = useState(false);
@@ -396,6 +433,7 @@ function AppInner() {
       <div className="flex-1 flex flex-col min-w-0">
         <Header
           title={VIEW_TITLES[activeView]}
+          tooltipContent={activeView === 'transactions' ? TRANSACTIONS_TOOLTIP : undefined}
           dollarRates={rates}
           dollarLoading={dollarLoading}
           dollarError={dollarError}
