@@ -4,16 +4,16 @@ import {
   Percent, AlertCircle, CheckCircle, RotateCcw,
   Plus, X, Edit2, Trash2, Target, ChevronDown, ChevronUp,
 } from 'lucide-react';
-import { Rule502030 } from '../dashboard/Rule502030';
+import { BudgetRuleWidget } from '../dashboard/BudgetRuleWidget';
 import { SavingsGoal, Transaction, Rule502030Group, Rule502030Percentages } from '../../types';
-import { Rule502030Mapping, assignmentToMapping, buildAssignmentForCategories } from '../../lib/rule502030Mapping';
-import { DEFAULT_PERCENTAGES } from '../../lib/rule502030';
+import { Rule502030Mapping, assignmentToMapping, buildAssignmentForCategories } from '../../lib/budgetRuleMapping';
+import { DEFAULT_PERCENTAGES } from '../../lib/budgetRule';
 import { formatARS } from '../../lib/export';
 import { logError, getReadableError, getAllTransactions } from '../../lib/db';
 import { format, parseISO, differenceInMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-interface Rule502030ViewProps {
+interface BudgetRuleViewProps {
   transactions: Transaction[];
   totalIncome: number;
   expenseCategories: string[];
@@ -72,7 +72,7 @@ function formatGoalAmount(amount: number, currency: 'ARS' | 'USD'): string {
     : `$${formatARS(amount)}`;
 }
 
-export const Rule502030View = React.memo((props: Rule502030ViewProps) => {
+export const BudgetRuleView = React.memo((props: BudgetRuleViewProps) => {
   const {
     transactions,
     totalIncome,
@@ -262,7 +262,7 @@ export const Rule502030View = React.memo((props: Rule502030ViewProps) => {
           <>
             {/* Widget */}
             <div className="border-t border-border-color px-4 pt-3 pb-4">
-              <Rule502030
+              <BudgetRuleWidget
                 transactions={transactions}
                 totalIncome={totalIncome}
                 mapping={effectiveMapping}

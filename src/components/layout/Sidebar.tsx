@@ -14,7 +14,7 @@ import {
   ChevronDown,
 } from 'lucide-react';
 
-export type ActiveView = 'dashboard' | 'transactions' | 'analysis' | 'categories' | 'rule502030' | 'vivienda' | 'ahorros' | 'settings' | 'database';
+export type ActiveView = 'dashboard' | 'transactions' | 'analysis' | 'categories' | 'budgetRule' | 'housing' | 'savings' | 'settings' | 'database';
 
 interface SidebarProps {
   activeView: ActiveView;
@@ -47,9 +47,9 @@ const navGroups: NavGroup[] = [
     id: 'finanzas',
     label: 'Finanzas',
     items: [
-      { id: 'ahorros', label: 'Ahorros', icon: PiggyBank },
-      { id: 'rule502030', label: 'Metas', icon: PieChart },
-      { id: 'vivienda', label: 'Vivienda', icon: Home },
+      { id: 'savings', label: 'Ahorros', icon: PiggyBank },
+      { id: 'budgetRule', label: 'Metas', icon: PieChart },
+      { id: 'housing', label: 'Vivienda', icon: Home },
     ],
   },
   {

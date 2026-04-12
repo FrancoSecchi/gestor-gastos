@@ -1,5 +1,5 @@
 import { Transaction, Rule502030Data, Rule502030Group, Rule502030Percentages } from '../types';
-import { Rule502030Mapping, getDefaultRule502030Mapping } from './rule502030Mapping';
+import { Rule502030Mapping, getDefaultRule502030Mapping } from './budgetRuleMapping';
 
 export const DEFAULT_PERCENTAGES: Rule502030Percentages = {
   Necesidades: 50,

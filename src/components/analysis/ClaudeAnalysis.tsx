@@ -5,8 +5,8 @@ import { analyzeWithClaude } from '../../lib/claude';
 import { exportForClaude } from '../../lib/export';
 import { getSetting } from '../../lib/db';
 import { formatARS } from '../../lib/export';
-import { calculateRule502030 } from '../../lib/rule502030';
-import { Rule502030Mapping } from '../../lib/rule502030Mapping';
+import { calculateRule502030 } from '../../lib/budgetRule';
+import { Rule502030Mapping } from '../../lib/budgetRuleMapping';
 
 interface ClaudeAnalysisProps {
   transactions: Transaction[];

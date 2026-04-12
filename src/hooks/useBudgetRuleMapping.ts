@@ -5,9 +5,9 @@ import {
   saveRule502030Mapping,
   pruneMappingToKnownExpenseCategories,
   ensureMappingCoversCategories,
-} from '../lib/rule502030Mapping';
+} from '../lib/budgetRuleMapping';
 import { Rule502030Percentages } from '../types';
-import { DEFAULT_PERCENTAGES } from '../lib/rule502030';
+import { DEFAULT_PERCENTAGES } from '../lib/budgetRule';
 import { getSetting, setSetting } from '../lib/db';
 
 const PERCENTAGES_KEY = 'rule502030_percentages';

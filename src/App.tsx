@@ -3,7 +3,7 @@ import { Sidebar, ActiveView } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
 import { SummaryCards } from './components/dashboard/SummaryCards';
 import { ExpenseChart } from './components/dashboard/ExpenseChart';
-import { Rule502030 } from './components/dashboard/Rule502030';
+import { BudgetRuleWidget } from './components/dashboard/BudgetRuleWidget';
 import { DollarRate } from './components/dashboard/DollarRate';
 import { RecurringPaymentsWidget } from './components/dashboard/RecurringPaymentsWidget';
 import { InsightsWidget } from './components/dashboard/InsightsWidget';
@@ -13,8 +13,8 @@ import { TransactionList } from './components/transactions/TransactionList';
 import { TransactionForm } from './components/transactions/TransactionForm';
 import { Settings } from './components/settings/Settings';
 import { CategoriesView } from './components/categories/CategoriesView';
-import { Rule502030View } from './components/rule502030/Rule502030View';
-import { AhorrosView } from './components/ahorros/AhorrosView';
+import { BudgetRuleView } from './components/budget-rule/BudgetRuleView';
+import { SavingsView } from './components/savings/SavingsView';
 import { ToastProvider, useToast } from './components/ui/Toast';
 
 // Lazy load heavy components
@@ -25,7 +25,7 @@ import { CategoriesProvider } from './contexts/CategoriesContext';
 import { useCategoriesContext } from './hooks/useCategoriesContext';
 import { useTransactions } from './hooks/useTransactions';
 import { useRecurringPayments, getCurrentPeriodRange } from './hooks/useRecurringPayments';
-import { useAhorros } from './hooks/useAhorros';
+import { useSavings } from './hooks/useSavings';
 import { useSavingsGoals } from './hooks/useSavingsGoals';
 import { deleteReceiptFile } from './lib/receiptUtils';
 import { useDollarRate } from './hooks/useDollarRate';
@@ -33,12 +33,12 @@ import { useFilters } from './hooks/useFilters';
 import { Transaction, NewTransaction, RecurringPayment, RecurrenceFrequency, RECURRENCE_LABELS } from './types';
 import { exportToExcel, exportForClaude } from './lib/export';
 import { getReadableError, logError, getTransactions, createRecurringPayment, getRule502030Enabled, setRule502030Enabled } from './lib/db';
-import { calculateRule502030 } from './lib/rule502030';
+import { calculateRule502030 } from './lib/budgetRule';
 import {
   getDefaultRule502030Mapping,
   ensureMappingCoversCategories,
-} from './lib/rule502030Mapping';
-import { useRule502030Mapping } from './hooks/useRule502030Mapping';
+} from './lib/budgetRuleMapping';
+import { useRule502030Mapping } from './hooks/useBudgetRuleMapping';
 import { useHousingContract } from './hooks/useHousingContract';
 import { format, startOfMonth, endOfMonth, subMonths, parseISO, differenceInDays } from 'date-fns';
 import { ChevronDown } from 'lucide-react';
@@ -48,9 +48,9 @@ const VIEW_TITLES: Record<ActiveView, string> = {
   transactions: 'Movimientos',
   analysis: 'Análisis con IA',
   categories: 'Categorías',
-  rule502030: 'Metas',
-  vivienda: 'Vivienda',
-  ahorros: 'Ahorros',
+  budgetRule: 'Metas',
+  housing: 'Vivienda',
+  savings: 'Ahorros',
   settings: 'Ajustes',
   database: 'Base de datos',
 };
@@ -307,7 +307,7 @@ function AppInner() {
     removeGoal,
   } = useSavingsGoals();
 
-  const { data: ahorrosData } = useAhorros(rule502030Mapping);
+  const { data: ahorrosData } = useSavings(rule502030Mapping);
   const totalSavings = ahorrosData?.totalSavings ?? 0;
   const streakMonths = ahorrosData?.streakMonths ?? 0;
 
@@ -606,7 +606,7 @@ function AppInner() {
                 </div>
                 <div className="col-span-5 flex flex-col gap-4">
                   {rule502030Enabled && (
-                    <Rule502030
+                    <BudgetRuleWidget
                       transactions={transactions}
                       totalIncome={summary?.total_income ?? 0}
                       mapping={effectiveRule502030Mapping}
@@ -726,9 +726,9 @@ function AppInner() {
             </div>
           )}
 
-          {activeView === 'rule502030' && (
+          {activeView === 'budgetRule' && (
             <div className="animate-fade-in">
-              <Rule502030View
+              <BudgetRuleView
                 transactions={transactions}
                 totalIncome={summary?.total_income ?? 0}
                 expenseCategories={expenseCategories}
@@ -755,9 +755,9 @@ function AppInner() {
             </div>
           )}
 
-          {activeView === 'ahorros' && (
+          {activeView === 'savings' && (
             <div className="animate-fade-in">
-              <AhorrosView
+              <SavingsView
                 dollarRates={rates}
                 dollarLoading={dollarLoading}
                 rule502030Mapping={rule502030Mapping}
@@ -765,7 +765,7 @@ function AppInner() {
             </div>
           )}
 
-          {activeView === 'vivienda' && (
+          {activeView === 'housing' && (
             <div className="animate-fade-in">
               <HousingErrorBoundary>
                 <Suspense fallback={<div className="flex items-center justify-center h-full"><p className="text-text-secondary">Cargando vivienda...</p></div>}>

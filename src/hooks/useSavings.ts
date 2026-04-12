@@ -180,7 +180,7 @@ function computeAhorros(
 
 const INITIAL_BALANCE_KEY = 'ahorros_initial_balance';
 
-export function useAhorros(mapping?: Rule502030Mapping | null) {
+export function useSavings(mapping?: Rule502030Mapping | null) {
   const [data, setData] = useState<AhorrosData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -210,7 +210,7 @@ export function useAhorros(mapping?: Rule502030Mapping | null) {
       }
       setData(computeAhorros(all, savingsCategories, initialBalance, initialBalanceMeta));
     } catch (e) {
-      await logError('useAhorros', e);
+      await logError('useSavings', e);
       setError(e instanceof Error ? e.message : 'Error al cargar ahorros');
     } finally {
       setLoading(false);

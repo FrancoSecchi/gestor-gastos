@@ -6,13 +6,13 @@ import {
   ResponsiveContainer, ReferenceLine, Legend,
 } from 'recharts';
 import { TrendingUp, DollarSign, Percent, Flame, ChevronDown, Pencil, Check, X } from 'lucide-react';
-import { useAhorros, Rule502030Mapping, InitialBalanceMeta } from '../../hooks/useAhorros';
+import { useSavings, Rule502030Mapping, InitialBalanceMeta } from '../../hooks/useSavings';
 import { DollarRate } from '../../types';
 import { formatARS } from '../../lib/export';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-interface AhorrosViewProps {
+interface SavingsViewProps {
   dollarRates: DollarRate[];
   dollarLoading: boolean;
   rule502030Mapping: Rule502030Mapping | null;
@@ -66,12 +66,12 @@ const CustomTooltipMonthly = ({ active, payload, label }: any) => {
   );
 };
 
-export const AhorrosView: React.FC<AhorrosViewProps> = ({
+export const SavingsView: React.FC<SavingsViewProps> = ({
   dollarRates,
   dollarLoading,
   rule502030Mapping,
 }) => {
-  const { data, loading, refresh, saveInitialBalance } = useAhorros(rule502030Mapping);
+  const { data, loading, refresh, saveInitialBalance } = useSavings(rule502030Mapping);
   const [selectedDollar, setSelectedDollar] = useState<string>('blue');
   const [showDollarMenu, setShowDollarMenu] = useState(false);
   const [showUsd, setShowUsd] = useState(false);

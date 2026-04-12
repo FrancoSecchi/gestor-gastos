@@ -2,12 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { Home, Gamepad2, PiggyBank, ChevronDown, ChevronUp, Target } from 'lucide-react';
 import { Transaction, Rule502030Percentages, SavingsGoal } from '../../types';
 import { formatARS } from '../../lib/export';
-import { calculateRule502030, DEFAULT_PERCENTAGES } from '../../lib/rule502030';
-import { Rule502030Mapping } from '../../lib/rule502030Mapping';
+import { calculateRule502030, DEFAULT_PERCENTAGES } from '../../lib/budgetRule';
+import { Rule502030Mapping } from '../../lib/budgetRuleMapping';
 import { InfoTooltip } from '../ui/InfoTooltip';
 import { differenceInMonths, parseISO } from 'date-fns';
 
-interface Rule502030Props {
+interface BudgetRuleWidgetProps {
   transactions: Transaction[];
   totalIncome: number;
   mapping: Rule502030Mapping;
@@ -43,7 +43,7 @@ const TOOLTIP_CONTENT = (
   </div>
 );
 
-export const Rule502030: React.FC<Rule502030Props> = ({
+export const BudgetRuleWidget: React.FC<BudgetRuleWidgetProps> = ({
   transactions,
   totalIncome,
   mapping,
