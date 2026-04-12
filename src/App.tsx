@@ -26,12 +26,13 @@ import { useCategoriesContext } from './hooks/useCategoriesContext';
 import { useTransactions } from './hooks/useTransactions';
 import { useRecurringPayments, getCurrentPeriodRange } from './hooks/useRecurringPayments';
 import { useAhorros } from './hooks/useAhorros';
+import { useSavingsGoals } from './hooks/useSavingsGoals';
 import { deleteReceiptFile } from './lib/receiptUtils';
 import { useDollarRate } from './hooks/useDollarRate';
 import { useFilters } from './hooks/useFilters';
 import { Transaction, NewTransaction, RecurringPayment, RecurrenceFrequency, RECURRENCE_LABELS } from './types';
 import { exportToExcel, exportForClaude } from './lib/export';
-import { getReadableError, logError, getTransactions, createRecurringPayment } from './lib/db';
+import { getReadableError, logError, getTransactions, createRecurringPayment, getRule502030Enabled, setRule502030Enabled } from './lib/db';
 import { calculateRule502030 } from './lib/rule502030';
 import {
   getDefaultRule502030Mapping,
@@ -47,7 +48,7 @@ const VIEW_TITLES: Record<ActiveView, string> = {
   transactions: 'Movimientos',
   analysis: 'Análisis con IA',
   categories: 'Categorías',
-  rule502030: 'Presupuesto',
+  rule502030: 'Metas',
   vivienda: 'Vivienda',
   ahorros: 'Ahorros',
   settings: 'Ajustes',
@@ -296,9 +297,37 @@ function AppInner() {
 
   const effectiveRule502030Mapping = rule502030Mapping ?? getDefaultRule502030Mapping();
 
+  const [rule502030Enabled, setRule502030EnabledState] = useState(true);
+
+  const {
+    goals: savingsGoals,
+    loading: savingsGoalsLoading,
+    addGoal,
+    updateGoal,
+    removeGoal,
+  } = useSavingsGoals();
+
   const { data: ahorrosData } = useAhorros(rule502030Mapping);
   const totalSavings = ahorrosData?.totalSavings ?? 0;
   const streakMonths = ahorrosData?.streakMonths ?? 0;
+
+  useEffect(() => {
+    getRule502030Enabled()
+      .then(setRule502030EnabledState)
+      .catch(err => {
+        console.error('Error loading rule 50/30/20 enabled flag:', err);
+        setRule502030EnabledState(true);
+      });
+  }, []);
+
+  const toggleRule502030 = useCallback(async (enabled: boolean) => {
+    try {
+      await setRule502030Enabled(enabled);
+      setRule502030EnabledState(enabled);
+    } catch (err) {
+      await logError('App.toggleRule502030', err);
+    }
+  }, []);
 
   const handleAddCustomCategory = useCallback(
     async (type: 'expense' | 'income', name: string) => {
@@ -576,14 +605,18 @@ function AppInner() {
                   />
                 </div>
                 <div className="col-span-5 flex flex-col gap-4">
-                  <Rule502030
-                    transactions={transactions}
-                    totalIncome={summary?.total_income ?? 0}
-                    mapping={effectiveRule502030Mapping}
-                    percentages={rule502030Percentages}
-                    startDate={dateRange.start}
-                    endDate={dateRange.end}
-                  />
+                  {rule502030Enabled && (
+                    <Rule502030
+                      transactions={transactions}
+                      totalIncome={summary?.total_income ?? 0}
+                      mapping={effectiveRule502030Mapping}
+                      percentages={rule502030Percentages}
+                      startDate={dateRange.start}
+                      endDate={dateRange.end}
+                      savingsGoals={savingsGoals}
+                      allTransactions={currentMonthTransactions}
+                    />
+                  )}
                   {recurringPayments?.length > 0 && (
                     <RecurringPaymentsWidget
                       recurringPayments={recurringPayments}
@@ -704,6 +737,13 @@ function AppInner() {
                 percentages={rule502030Percentages}
                 startDate={dateRange.start}
                 endDate={dateRange.end}
+                savingsGoals={savingsGoals}
+                savingsGoalsLoading={savingsGoalsLoading}
+                rule502030Enabled={rule502030Enabled}
+                onToggleRule502030={toggleRule502030}
+                onCreateGoal={async goal => { await addGoal(goal); }}
+                onUpdateGoal={async goal => { await updateGoal(goal); }}
+                onRemoveGoal={async id => { await removeGoal(id); }}
                 onSave={updateRule502030Mapping}
                 onSavePercentages={updateRule502030Percentages}
                 onReset={async () => {
@@ -768,6 +808,7 @@ function AppInner() {
           categoryIcons={categoryIcons}
           housingContract={housingContract}
           dollarRates={rates}
+          savingsGoals={savingsGoals}
           onAddCustomCategory={handleAddCustomCategory}
           onSave={handleSaveTransaction}
           onClose={handleCloseForm}

@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Home, Gamepad2, PiggyBank, ChevronDown, ChevronUp } from 'lucide-react';
-import { Transaction, Rule502030Percentages } from '../../types';
+import { Home, Gamepad2, PiggyBank, ChevronDown, ChevronUp, Target } from 'lucide-react';
+import { Transaction, Rule502030Percentages, SavingsGoal } from '../../types';
 import { formatARS } from '../../lib/export';
 import { calculateRule502030, DEFAULT_PERCENTAGES } from '../../lib/rule502030';
 import { Rule502030Mapping } from '../../lib/rule502030Mapping';
 import { InfoTooltip } from '../ui/InfoTooltip';
+import { differenceInMonths, parseISO } from 'date-fns';
 
 interface Rule502030Props {
   transactions: Transaction[];
@@ -13,6 +14,8 @@ interface Rule502030Props {
   percentages?: Rule502030Percentages;
   startDate?: string;
   endDate?: string;
+  savingsGoals?: SavingsGoal[];
+  allTransactions?: Transaction[];
 }
 
 const GROUP_ICON: Record<string, React.ReactNode> = {
@@ -45,6 +48,8 @@ export const Rule502030: React.FC<Rule502030Props> = ({
   totalIncome,
   mapping,
   percentages = DEFAULT_PERCENTAGES,
+  savingsGoals = [],
+  allTransactions = [],
 }) => {
   const [mounted, setMounted] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
@@ -171,6 +176,55 @@ export const Rule502030: React.FC<Rule502030Props> = ({
           </div>
         );
       })}
+
+      {/* Goals */}
+      {savingsGoals.length > 0 && (
+        <div className="border-t border-border-color px-4 py-3">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-text-secondary/50 mb-2">Metas</p>
+          <div className="flex flex-col gap-2">
+            {savingsGoals.map(goal => {
+              const saved = allTransactions.reduce((sum, tx) => {
+                if (tx.goal_id !== goal.id) return sum;
+                return sum + (goal.currency === 'USD' ? (tx.amount_usd ?? 0) : tx.amount);
+              }, 0);
+              const pct = goal.targetAmount > 0 ? Math.min(100, (saved / goal.targetAmount) * 100) : 0;
+              const monthsLeft = Math.max(0, differenceInMonths(parseISO(goal.targetDate), new Date()));
+              const isCompleted = pct >= 100;
+              return (
+                <div key={goal.id}>
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-1.5 text-text-secondary">
+                      <Target size={11} className="shrink-0" />
+                      <span className="text-xs text-text-primary font-medium truncate">{goal.name}</span>
+                    </div>
+                    <span className="text-xs text-text-secondary tabular-nums">
+                      {pct.toFixed(0)}%
+                    </span>
+                  </div>
+                  <div className="h-1.5 bg-bg-secondary rounded-full overflow-hidden mb-1">
+                    <div
+                      className="h-full rounded-full"
+                      style={{
+                        width: mounted ? `${pct}%` : '0%',
+                        backgroundColor: isCompleted ? '#22c55e' : '#3b82f6',
+                        transition: 'width 0.7s cubic-bezier(0.16,1,0.3,1)',
+                      }}
+                    />
+                  </div>
+                  {!isCompleted && monthsLeft > 0 && (
+                    <p className="text-[10px] text-text-secondary">
+                      {monthsLeft} {monthsLeft === 1 ? 'mes' : 'meses'} restantes
+                    </p>
+                  )}
+                  {isCompleted && (
+                    <p className="text-[10px] text-accent-green">¡Completada!</p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Footer summary */}
       <div className="border-t border-border-color px-4 py-3">

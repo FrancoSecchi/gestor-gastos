@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Save, Eye, EyeOff, Key, Trash2, AlertCircle, CheckCircle, ExternalLink, Shield, Database, Cpu } from 'lucide-react';
-import { getSetting, setSetting, getReadableError, logError, getErrorLogs } from '../../lib/db';
+import { Save, Eye, EyeOff, Key, Trash2, AlertCircle, CheckCircle, ExternalLink, Shield, Database, Cpu, Percent } from 'lucide-react';
+import { getRule502030Enabled, setRule502030Enabled, getSetting, setSetting, getReadableError, logError, getErrorLogs } from '../../lib/db';
 
 interface SettingsProps {
   onClearAllData: () => Promise<void>;
@@ -14,6 +14,8 @@ export const Settings: React.FC<SettingsProps> = ({
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [hasKey, setHasKey] = useState(false);
+  const [ruleEnabled, setRuleEnabled] = useState(true);
+  const [savingRule, setSavingRule] = useState(false);
 
   useEffect(() => {
     getSetting('claude_api_key').then(key => {
@@ -22,6 +24,7 @@ export const Settings: React.FC<SettingsProps> = ({
         setHasKey(true);
       }
     });
+    getRule502030Enabled().then(enabled => setRuleEnabled(enabled));
   }, []);
 
   const showMessage = (type: 'success' | 'error', text: string) => {
@@ -82,6 +85,19 @@ export const Settings: React.FC<SettingsProps> = ({
     }
   };
 
+  const handleToggleRule502030 = async () => {
+    setSavingRule(true);
+    try {
+      await setRule502030Enabled(!ruleEnabled);
+      setRuleEnabled(prev => !prev);
+      showMessage('success', `Regla 50/30/20 ${ruleEnabled ? 'desactivada' : 'activada'}`);
+    } catch (err) {
+      await logError('Settings.handleToggleRule502030', err);
+      showMessage('error', getReadableError(err));
+    } finally {
+      setSavingRule(false);
+    }
+  };
 
   const handleDownloadErrorLog = async () => {
     try {
@@ -126,6 +142,29 @@ export const Settings: React.FC<SettingsProps> = ({
       </div>
 
       {/* Claude API Key */}
+      <div className="bg-bg-card border border-border-color rounded-xl p-5">
+        <div className="flex items-center gap-3 mb-5">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-accent-purple/20 to-accent-blue/20 flex items-center justify-center border border-accent-purple/20">
+            <Percent size={16} className="text-accent-purple" />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-text-primary">Regla 50/30/20</h3>
+            <p className="text-xs text-text-secondary">Activa o desactiva el seguimiento automático de presupuesto.</p>
+          </div>
+          <button
+            type="button"
+            onClick={handleToggleRule502030}
+            disabled={savingRule}
+            className={`ml-auto rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${ruleEnabled ? 'bg-accent-green text-white hover:bg-green-500' : 'bg-bg-secondary text-text-secondary hover:bg-bg-card'}`}
+          >
+            {ruleEnabled ? 'Activada' : 'Desactivada'}
+          </button>
+        </div>
+        <p className="text-xs text-text-secondary">
+          Si desactivás la regla, la tarjeta de presupuesto en el dashboard desaparecerá, pero podés seguir gestionando metas en la sección correspondiente.
+        </p>
+      </div>
+
       <div className="bg-bg-card border border-border-color rounded-xl p-5">
         <div className="flex items-center gap-3 mb-5">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-accent-blue/20 to-accent-green/20 flex items-center justify-center border border-accent-blue/20">

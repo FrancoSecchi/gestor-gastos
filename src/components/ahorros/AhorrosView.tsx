@@ -85,6 +85,13 @@ export const AhorrosView: React.FC<AhorrosViewProps> = ({
   const currentRate = dollarRates.find(r => r.casa === selectedDollar);
   const arsToUsd = (ars: number) => currentRate ? ars / currentRate.venta : 0;
 
+
+  const inputClass = `
+    w-full bg-bg-secondary border border-border-color rounded-xl px-3 py-2.5 text-sm text-text-primary
+    focus:outline-none focus:border-accent-blue focus:ring-1 focus:ring-accent-blue/20
+    placeholder-text-secondary transition-all duration-150
+  `;
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -385,6 +392,7 @@ export const AhorrosView: React.FC<AhorrosViewProps> = ({
         />
       </div>
 
+      
       {/* Charts row */}
       <div className="grid grid-cols-2 gap-4">
         {/* Chart 1: Evolución acumulada */}

@@ -48,7 +48,7 @@ const navGroups: NavGroup[] = [
     label: 'Finanzas',
     items: [
       { id: 'ahorros', label: 'Ahorros', icon: PiggyBank },
-      { id: 'rule502030', label: 'Presupuesto', icon: PieChart },
+      { id: 'rule502030', label: 'Metas', icon: PieChart },
       { id: 'vivienda', label: 'Vivienda', icon: Home },
     ],
   },

@@ -87,9 +87,15 @@ async function initializeDb(database: Database): Promise<void> {
   } catch {
     // Column already exists
   }
+  try {
+    await database.execute(`ALTER TABLE transactions ADD COLUMN goal_id TEXT`);
+  } catch {
+    // Column already exists
+  }
 
   // Indexes
   await database.execute(`CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date)`);
+  await database.execute(`CREATE INDEX IF NOT EXISTS idx_transactions_goal_id ON transactions(goal_id)`);
   await database.execute(`CREATE INDEX IF NOT EXISTS idx_transactions_type ON transactions(type)`);
   await database.execute(`CREATE INDEX IF NOT EXISTS idx_transactions_category ON transactions(category)`);
   await database.execute(`CREATE INDEX IF NOT EXISTS idx_transactions_recurring_id ON transactions(recurring_id)`);
@@ -182,9 +188,9 @@ export async function createTransaction(tx: NewTransaction): Promise<Transaction
   const created_at = new Date().toISOString();
 
   await database.execute(
-    `INSERT INTO transactions (id, type, subtype, amount, amount_usd, dollar_type, category, subcategory, description, receipt_path, date, created_at, recurring_id)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
-    [id, tx.type, tx.subtype ?? null, tx.amount, tx.amount_usd ?? null, tx.dollar_type ?? null, tx.category, tx.subcategory ?? null, tx.description ?? null, tx.receipt_path ?? null, tx.date, created_at, tx.recurring_id ?? null]
+    `INSERT INTO transactions (id, type, subtype, amount, amount_usd, dollar_type, category, subcategory, description, receipt_path, date, created_at, recurring_id, goal_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+    [id, tx.type, tx.subtype ?? null, tx.amount, tx.amount_usd ?? null, tx.dollar_type ?? null, tx.category, tx.subcategory ?? null, tx.description ?? null, tx.receipt_path ?? null, tx.date, created_at, tx.recurring_id ?? null, tx.goal_id ?? null]
   );
 
   return { ...tx, id, created_at };
@@ -193,9 +199,9 @@ export async function createTransaction(tx: NewTransaction): Promise<Transaction
 export async function updateTransaction(tx: Transaction): Promise<Transaction> {
   const database = await getDb();
   await database.execute(
-    `UPDATE transactions SET type=$1, subtype=$2, amount=$3, amount_usd=$4, dollar_type=$5, category=$6, subcategory=$7, description=$8, receipt_path=$9, date=$10, recurring_id=$11
-     WHERE id=$12`,
-    [tx.type, tx.subtype ?? null, tx.amount, tx.amount_usd ?? null, tx.dollar_type ?? null, tx.category, tx.subcategory ?? null, tx.description ?? null, tx.receipt_path ?? null, tx.date, tx.recurring_id ?? null, tx.id]
+    `UPDATE transactions SET type=$1, subtype=$2, amount=$3, amount_usd=$4, dollar_type=$5, category=$6, subcategory=$7, description=$8, receipt_path=$9, date=$10, recurring_id=$11, goal_id=$12
+     WHERE id=$13`,
+    [tx.type, tx.subtype ?? null, tx.amount, tx.amount_usd ?? null, tx.dollar_type ?? null, tx.category, tx.subcategory ?? null, tx.description ?? null, tx.receipt_path ?? null, tx.date, tx.recurring_id ?? null, tx.goal_id ?? null, tx.id]
   );
   return tx;
 }
@@ -304,6 +310,24 @@ export async function getSummary(startDate: string, endDate: string): Promise<Su
     balance: total_income - total_expenses,
     by_category: categoryResult,
   };
+}
+
+export async function getRule502030Enabled(): Promise<boolean> {
+  const raw = await getSetting('rule502030_enabled');
+  if (raw === null) return true;
+  return raw === 'true';
+}
+
+export async function setRule502030Enabled(enabled: boolean): Promise<boolean> {
+  return setSetting('rule502030_enabled', enabled ? 'true' : 'false');
+}
+
+export async function getSavingsGoals(): Promise<string | null> {
+  return getSetting('savings_goals');
+}
+
+export async function saveSavingsGoals(value: string): Promise<boolean> {
+  return setSetting('savings_goals', value);
 }
 
 export async function getSetting(key: string): Promise<string | null> {

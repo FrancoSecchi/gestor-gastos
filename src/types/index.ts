@@ -60,6 +60,16 @@ export interface Rule502030Percentages {
   'Ahorro/Inversión': number;
 }
 
+export interface SavingsGoal {
+  id: string;
+  name: string;
+  targetAmount: number;
+  currency: 'ARS' | 'USD';
+  targetDate: string; // yyyy-MM-dd
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Transaction {
   id: string;
   type: TransactionType;
@@ -74,6 +84,7 @@ export interface Transaction {
   date: string;
   created_at: string;
   recurring_id?: string | null;
+  goal_id?: string | null;
 }
 
 export interface NewTransaction {
@@ -88,6 +99,7 @@ export interface NewTransaction {
   receipt_path?: string | null;
   date: string;
   recurring_id?: string | null;
+  goal_id?: string | null;
 }
 
 export interface CategorySummary {

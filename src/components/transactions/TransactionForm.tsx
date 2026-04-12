@@ -3,7 +3,7 @@ import { X, Save, Plus, Eye, Calendar, Paperclip, FileX, RefreshCw } from 'lucid
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import { copyReceiptFile, deleteReceiptFile } from '../../lib/receiptUtils';
 import { DatePicker } from '../ui/DatePicker';
-import { Transaction, NewTransaction, TransactionType, DollarRate, getCategoryColor, RecurrenceFrequency, RECURRENCE_LABELS, RecurringPayment } from '../../types';
+import { Transaction, NewTransaction, TransactionType, DollarRate, getCategoryColor, RecurrenceFrequency, RECURRENCE_LABELS, RecurringPayment, SavingsGoal } from '../../types';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { formatARS } from '../../lib/export';
@@ -22,6 +22,7 @@ interface TransactionFormProps {
   categoryIcons: Record<string, string>;
   housingContract?: HousingContract | null;
   dollarRates?: DollarRate[];
+  savingsGoals: SavingsGoal[];
   onAddCustomCategory: (type: TransactionType, name: string) => Promise<void>;
   onSave: (tx: NewTransaction | Transaction, recurringFrequency?: RecurrenceFrequency) => Promise<void>;
   onClose: () => void;
@@ -37,6 +38,7 @@ const defaultForm: NewTransaction = {
   subcategory: null,
   description: '',
   date: format(new Date(), 'yyyy-MM-dd'),
+  goal_id: null,
 };
 
 function formatAmountDisplay(value: number): string {
@@ -95,6 +97,7 @@ export const TransactionForm = React.memo((props: TransactionFormProps) => {
         description: transaction.description ?? '',
         date: transaction.date,
         recurring_id: transaction.recurring_id ?? null,
+        goal_id: transaction.goal_id ?? null,
       });
       setAmountInput(transaction.amount > 0 ? String(transaction.amount) : '');
 
@@ -133,7 +136,7 @@ export const TransactionForm = React.memo((props: TransactionFormProps) => {
       setFormMode(recurringTemplate.type === 'income' ? 'income' : 'expense');
       setIsRecurring(false);
     } else {
-      setForm({ ...defaultForm, type: initialType ?? 'expense' });
+      setForm({ ...defaultForm, type: initialType ?? 'expense', goal_id: null });
       setAmountInput('');
       setFormMode(initialType ?? 'expense');
       setTransferMode('deposit');
@@ -162,7 +165,7 @@ export const TransactionForm = React.memo((props: TransactionFormProps) => {
   const handleTypeChange = (type: TransactionType) => {
     const list = type === 'expense' ? expenseCategories : incomeCategories;
     const defaultCat = list[0] ?? (type === 'expense' ? 'Comida' : 'Salario');
-    setForm(prev => ({ ...prev, type, category: defaultCat, subtype: undefined }));
+    setForm(prev => ({ ...prev, type, category: defaultCat, subtype: undefined, goal_id: null }));
     setFormMode(type === 'expense' ? 'expense' : 'income');
   };
 
@@ -172,18 +175,18 @@ export const TransactionForm = React.memo((props: TransactionFormProps) => {
     if (mode === 'expense') {
       const list = expenseCategories;
       const defaultCat = list[0] ?? 'Comida';
-      setForm(prev => ({ ...prev, type: 'expense', category: defaultCat, subtype: undefined }));
+      setForm(prev => ({ ...prev, type: 'expense', category: defaultCat, subtype: undefined, goal_id: null }));
     } else if (mode === 'income') {
       const list = incomeCategories;
       const defaultCat = list[0] ?? 'Salario';
-      setForm(prev => ({ ...prev, type: 'income', category: defaultCat, subtype: undefined }));
+      setForm(prev => ({ ...prev, type: 'income', category: defaultCat, subtype: undefined, goal_id: null }));
     } else if (mode === 'transfer') {
       // El subtype se asignará según transferMode
       const subtype = transferMode === 'deposit' ? 'transfer_to_savings' : 'transfer_from_savings';
       if (transferMode === 'deposit') {
         setForm(prev => ({ ...prev, type: 'expense', subtype, category: 'Ahorro' }));
       } else {
-        setForm(prev => ({ ...prev, type: 'income', subtype, category: 'Retiro de ahorro' }));
+        setForm(prev => ({ ...prev, type: 'income', subtype, category: 'Retiro de ahorro', goal_id: null }));
       }
     }
   };
@@ -204,6 +207,7 @@ export const TransactionForm = React.memo((props: TransactionFormProps) => {
         type: 'income',
         subtype: 'transfer_from_savings',
         category: 'Retiro de ahorro',
+        goal_id: null,
       }));
     }
   };
@@ -300,7 +304,12 @@ export const TransactionForm = React.memo((props: TransactionFormProps) => {
         receiptPath = await copyReceiptFile(pendingFilePath, form.category, form.date);
       }
 
-      const payload = { ...form, receipt_path: receiptPath };
+      const eligibleGoal = form.subtype === 'transfer_to_savings' || SAVINGS_CATEGORIES.includes(form.category);
+      const payload = {
+        ...form,
+        receipt_path: receiptPath,
+        goal_id: eligibleGoal ? form.goal_id ?? null : null,
+      };
       if (transaction) {
         let finalPayload = { ...transaction, ...payload };
         // Si se activó recurrente en edición y no estaba linkeado, pasar frecuencia para crear el recurrente
@@ -610,6 +619,29 @@ export const TransactionForm = React.memo((props: TransactionFormProps) => {
                     />
                   </div>
                 </div>
+
+                {(form.subtype === 'transfer_to_savings' || SAVINGS_CATEGORIES.includes(form.category)) && (
+                  <div>
+                    <label className="block text-[10px] text-text-secondary mb-1 uppercase tracking-wider">
+                      Meta de ahorro
+                    </label>
+                    <select
+                      value={form.goal_id ?? ''}
+                      onChange={e => setForm(prev => ({ ...prev, goal_id: e.target.value || null }))}
+                      className={inputClass}
+                    >
+                      <option value="">Sin meta</option>
+                      {props.savingsGoals.map(goal => (
+                        <option key={goal.id} value={goal.id}>
+                          {goal.name} · {goal.currency === 'USD' ? `U$S ${goal.targetAmount}` : `$${formatARS(goal.targetAmount)}`}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-[10px] text-text-secondary mt-1">
+                      Asociá esta transacción a una meta para ver el progreso.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 
