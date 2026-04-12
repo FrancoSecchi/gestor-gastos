@@ -4,6 +4,7 @@ import {
   Percent, AlertCircle, CheckCircle, RotateCcw,
   Plus, X, Edit2, Trash2, Target, ChevronDown, ChevronUp,
 } from 'lucide-react';
+import { DatePicker } from '../ui/DatePicker';
 import { BudgetRuleWidget } from '../dashboard/BudgetRuleWidget';
 import { SavingsGoal, Transaction, Rule502030Group, Rule502030Percentages } from '../../types';
 import { Rule502030Mapping, assignmentToMapping, buildAssignmentForCategories } from '../../lib/budgetRuleMapping';
@@ -573,11 +574,10 @@ export const BudgetRuleView = React.memo((props: BudgetRuleViewProps) => {
                 <label className="text-[10px] font-medium uppercase tracking-wider text-text-secondary block mb-1.5">
                   Fecha límite
                 </label>
-                <input
-                  type="date"
+                <DatePicker
                   value={goalForm.targetDate}
-                  onChange={e => setGoalForm(prev => ({ ...prev, targetDate: e.target.value }))}
-                  className="w-full bg-bg-card border border-border-color rounded-xl px-3 py-2.5 text-sm text-text-primary focus:outline-none focus:border-accent-blue"
+                  onChange={val => setGoalForm(prev => ({ ...prev, targetDate: val }))}
+                  className="w-full bg-bg-card border border-border-color rounded-xl px-3 py-2.5 text-sm"
                 />
               </div>
 

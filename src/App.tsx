@@ -4,6 +4,7 @@ import { Header } from './components/layout/Header';
 import { SummaryCards } from './components/dashboard/SummaryCards';
 import { ExpenseChart } from './components/dashboard/ExpenseChart';
 import { BudgetRuleWidget } from './components/dashboard/BudgetRuleWidget';
+import { BudgetTabsWidget } from './components/dashboard/BudgetTabsWidget';
 import { DollarRate } from './components/dashboard/DollarRate';
 import { RecurringPaymentsWidget } from './components/dashboard/RecurringPaymentsWidget';
 import { InsightsWidget } from './components/dashboard/InsightsWidget';
@@ -606,15 +607,13 @@ function AppInner() {
                 </div>
                 <div className="col-span-5 flex flex-col gap-4">
                   {rule502030Enabled && (
-                    <BudgetRuleWidget
+                    <BudgetTabsWidget
                       transactions={transactions}
                       totalIncome={summary?.total_income ?? 0}
                       mapping={effectiveRule502030Mapping}
                       percentages={rule502030Percentages}
-                      startDate={dateRange.start}
-                      endDate={dateRange.end}
                       savingsGoals={savingsGoals}
-                      allTransactions={currentMonthTransactions}
+                      onNavigateGoals={() => setActiveView('budgetRule')}
                     />
                   )}
                   {recurringPayments?.length > 0 && (
