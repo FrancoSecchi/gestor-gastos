@@ -47,7 +47,7 @@ export const SummaryCards = React.memo((props: SummaryCardsProps) => {
     return (
       <div className="flex flex-row gap-3">
         {Array.from({ length: totalCols }).map((_, i) => (
-          <div key={i} className="bg-bg-card border border-border-color rounded-xl px-3 py-2.5 w-40">
+          <div key={i} className="bg-bg-card border border-border-color rounded-xl px-3 py-2.5 flex-1 min-w-0">
             <div className="skeleton h-2.5 w-12 mb-2" />
             <div className="skeleton h-5 w-24" />
           </div>
@@ -69,7 +69,7 @@ export const SummaryCards = React.memo((props: SummaryCardsProps) => {
 
         {/* Ingresos */}
         <div
-          className="bg-bg-card border border-accent-green/20 rounded-xl px-3 py-2.5 card-hover cursor-pointer w-36 shrink-0"
+          className="bg-bg-card border border-accent-green/20 rounded-xl px-3 py-2.5 card-hover cursor-pointer flex-1 min-w-0"
           onClick={() => onOpenForm?.('income')}
           title="Agregar ingreso"
         >
@@ -86,7 +86,7 @@ export const SummaryCards = React.memo((props: SummaryCardsProps) => {
 
         {/* Gastos */}
         <div
-          className="bg-bg-card border border-accent-red/20 rounded-xl px-3 py-2.5 card-hover cursor-pointer w-36 shrink-0"
+          className="bg-bg-card border border-accent-red/20 rounded-xl px-3 py-2.5 card-hover cursor-pointer flex-1 min-w-0"
           onClick={() => onOpenForm?.('expense')}
           title="Agregar gasto"
         >
@@ -102,7 +102,7 @@ export const SummaryCards = React.memo((props: SummaryCardsProps) => {
         </div>
 
         {/* Balance */}
-        <div className={`bg-bg-card border ${balancePositive ? 'border-accent-blue/20' : 'border-accent-orange/20'} rounded-xl px-3 py-2.5 card-hover w-44 shrink-0`}>
+        <div className={`bg-bg-card border ${balancePositive ? 'border-accent-blue/20' : 'border-accent-orange/20'} rounded-xl px-3 py-2.5 card-hover flex-1 min-w-0`}>
           <div className="flex items-center justify-between mb-1.5">
             <div className="flex items-center gap-1">
               <span className="text-[10px] font-medium text-text-secondary uppercase tracking-wider">Balance</span>
@@ -131,7 +131,7 @@ export const SummaryCards = React.memo((props: SummaryCardsProps) => {
         </div>
 
         {/* Tasa de Ahorro */}
-        <div className={`bg-bg-card border ${savingsRate >= 20 ? 'border-accent-green/20' : savingsRate >= 10 ? 'border-accent-yellow/20' : 'border-accent-orange/20'} rounded-xl px-3 py-2.5 card-hover w-36 shrink-0`}>
+        <div className={`bg-bg-card border ${savingsRate >= 20 ? 'border-accent-green/20' : savingsRate >= 10 ? 'border-accent-yellow/20' : 'border-accent-orange/20'} rounded-xl px-3 py-2.5 card-hover flex-1 min-w-0`}>
           <div className="flex items-center justify-between mb-1.5">
             <div className="flex items-center gap-1">
               <span className="text-[10px] font-medium text-text-secondary uppercase tracking-wider">Tasa Ahorro</span>
@@ -166,7 +166,7 @@ export const SummaryCards = React.memo((props: SummaryCardsProps) => {
 
         {/* Total Ahorrado */}
         {totalSavings !== undefined && (
-          <div className="bg-bg-card border border-accent-green/20 rounded-xl px-3 py-2.5 card-hover w-36 shrink-0">
+          <div className="bg-bg-card border border-accent-green/20 rounded-xl px-3 py-2.5 card-hover flex-1 min-w-0">
             <div className="flex items-center justify-between mb-1.5">
               <span className="text-[10px] font-medium text-text-secondary uppercase tracking-wider">Total Ahorrado</span>
               <div className="bg-accent-green/15 p-1 rounded-md">

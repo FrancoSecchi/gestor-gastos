@@ -606,16 +606,15 @@ function AppInner() {
                   />
                 </div>
                 <div className="col-span-5 flex flex-col gap-4">
-                  {rule502030Enabled && (
-                    <BudgetTabsWidget
-                      transactions={transactions}
-                      totalIncome={summary?.total_income ?? 0}
-                      mapping={effectiveRule502030Mapping}
-                      percentages={rule502030Percentages}
-                      savingsGoals={savingsGoals}
-                      onNavigateGoals={() => setActiveView('budgetRule')}
-                    />
-                  )}
+                  <BudgetTabsWidget
+                    transactions={transactions}
+                    totalIncome={summary?.total_income ?? 0}
+                    mapping={effectiveRule502030Mapping}
+                    percentages={rule502030Percentages}
+                    savingsGoals={savingsGoals}
+                    onNavigateGoals={() => setActiveView('budgetRule')}
+                    showBudgetTab={rule502030Enabled}
+                  />
                   {recurringPayments?.length > 0 && (
                     <RecurringPaymentsWidget
                       recurringPayments={recurringPayments}

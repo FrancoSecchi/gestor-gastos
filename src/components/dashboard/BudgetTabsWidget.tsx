@@ -15,6 +15,7 @@ interface BudgetTabsWidgetProps {
   percentages?: Rule502030Percentages;
   savingsGoals: SavingsGoal[];
   onNavigateGoals: () => void;
+  showBudgetTab?: boolean;
 }
 
 type Tab = 'budget' | 'goals';
@@ -69,8 +70,9 @@ export const BudgetTabsWidget: React.FC<BudgetTabsWidgetProps> = ({
   percentages = DEFAULT_PERCENTAGES,
   savingsGoals,
   onNavigateGoals,
+  showBudgetTab = true,
 }) => {
-  const [tab, setTab] = useState<Tab>('budget');
+  const [tab, setTab] = useState<Tab>(showBudgetTab ? 'budget' : 'goals');
   const [mounted, setMounted] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [allTx, setAllTx] = useState<Transaction[]>([]);
@@ -83,6 +85,12 @@ export const BudgetTabsWidget: React.FC<BudgetTabsWidgetProps> = ({
   useEffect(() => {
     getAllTransactions().then(setAllTx).catch(() => {});
   }, [savingsGoals.length]);
+
+  useEffect(() => {
+    if (!showBudgetTab && tab === 'budget') {
+      setTab('goals');
+    }
+  }, [showBudgetTab, tab]);
 
   const data = calculateRule502030(transactions, totalIncome, mapping, percentages);
   const totalSpent = data.reduce((sum, item) => sum + item.spent, 0);
@@ -102,32 +110,43 @@ export const BudgetTabsWidget: React.FC<BudgetTabsWidgetProps> = ({
     <div className="bg-bg-card border border-border-color rounded-xl overflow-hidden">
 
       {/* Tab bar */}
-      <div className="flex border-b border-border-color">
-        <button
-          onClick={() => setTab('budget')}
-          className={`flex-1 py-2.5 text-xs font-semibold transition-colors ${
-            tab === 'budget'
-              ? 'text-text-primary border-b-2 border-accent-blue -mb-px'
-              : 'text-text-secondary hover:text-text-primary'
-          }`}
-        >
-          Regla 50/30/20
-        </button>
-        <button
-          onClick={() => setTab('goals')}
-          className={`flex-1 py-2.5 text-xs font-semibold transition-colors ${
-            tab === 'goals'
-              ? 'text-text-primary border-b-2 border-accent-blue -mb-px'
-              : 'text-text-secondary hover:text-text-primary'
-          }`}
-        >
-          Metas {savingsGoals.length > 0 && (
-            <span className="ml-1 text-[10px] bg-bg-secondary text-text-secondary rounded-full px-1.5 py-0.5 tabular-nums">
+      {showBudgetTab ? (
+        <div className="flex border-b border-border-color">
+          <button
+            onClick={() => setTab('budget')}
+            className={`flex-1 py-2.5 text-xs font-semibold transition-colors ${
+              tab === 'budget'
+                ? 'text-text-primary border-b-2 border-accent-blue -mb-px'
+                : 'text-text-secondary hover:text-text-primary'
+            }`}
+          >
+            Regla 50/30/20
+          </button>
+          <button
+            onClick={() => setTab('goals')}
+            className={`flex-1 py-2.5 text-xs font-semibold transition-colors ${
+              tab === 'goals'
+                ? 'text-text-primary border-b-2 border-accent-blue -mb-px'
+                : 'text-text-secondary hover:text-text-primary'
+            }`}
+          >
+            Metas {savingsGoals.length > 0 && (
+              <span className="ml-1 text-[10px] bg-bg-secondary text-text-secondary rounded-full px-1.5 py-0.5 tabular-nums">
+                {savingsGoals.length}
+              </span>
+            )}
+          </button>
+        </div>
+      ) : (
+        <div className="flex items-center justify-between px-4 pt-4 pb-3">
+          <h3 className="text-sm font-semibold text-text-primary">Metas</h3>
+          {savingsGoals.length > 0 && (
+            <span className="text-[10px] bg-bg-secondary text-text-secondary rounded-full px-1.5 py-0.5 tabular-nums">
               {savingsGoals.length}
             </span>
           )}
-        </button>
-      </div>
+        </div>
+      )}
 
       {/* Budget tab */}
       {tab === 'budget' && (
@@ -256,7 +275,7 @@ export const BudgetTabsWidget: React.FC<BudgetTabsWidgetProps> = ({
             </div>
           ) : (
             <>
-              <div className="flex items-center justify-end px-4 pt-3 pb-2">
+              <div className={`flex items-center justify-end px-4 pb-2 ${showBudgetTab ? 'pt-3' : 'pt-0'}`}>
                 <button
                   onClick={onNavigateGoals}
                   className="flex items-center gap-1 text-xs text-text-secondary hover:text-text-primary transition-colors"
