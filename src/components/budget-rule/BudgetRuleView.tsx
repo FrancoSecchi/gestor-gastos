@@ -10,7 +10,7 @@ import { SavingsGoal, Transaction, Rule502030Group, Rule502030Percentages } from
 import { Rule502030Mapping, assignmentToMapping, buildAssignmentForCategories } from '../../lib/budgetRuleMapping';
 import { DEFAULT_PERCENTAGES } from '../../lib/budgetRule';
 import { formatARS } from '../../lib/export';
-import { logError, getReadableError, getAllTransactions } from '../../lib/db';
+import { logError, getReadableError } from '../../lib/db';
 import { format, parseISO, differenceInMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -23,6 +23,7 @@ interface BudgetRuleViewProps {
   percentages: Rule502030Percentages;
   startDate?: string;
   endDate?: string;
+  allTransactions: Transaction[];
   savingsGoals: SavingsGoal[];
   savingsGoalsLoading: boolean;
   rule502030Enabled: boolean;
@@ -83,6 +84,7 @@ export const BudgetRuleView = React.memo((props: BudgetRuleViewProps) => {
     percentages,
     startDate,
     endDate,
+    allTransactions,
     savingsGoals,
     savingsGoalsLoading,
     rule502030Enabled,
@@ -107,12 +109,6 @@ export const BudgetRuleView = React.memo((props: BudgetRuleViewProps) => {
   const [goalForm, setGoalForm] = useState(EMPTY_FORM);
   const [goalSaving, setGoalSaving] = useState(false);
   const [goalError, setGoalError] = useState<string | null>(null);
-
-  // All-time transactions for goal progress
-  const [allTx, setAllTx] = useState<Transaction[]>([]);
-  useEffect(() => {
-    getAllTransactions().then(setAllTx).catch(() => {});
-  }, [savingsGoals.length]);
 
   const expenseKey = expenseCategories.join('\0');
   useEffect(() => { setAssign(buildAssignmentForCategories(expenseCategories, mapping)); }, [expenseKey, mapping]);
@@ -188,7 +184,6 @@ export const BudgetRuleView = React.memo((props: BudgetRuleViewProps) => {
       }
       closeGoalForm();
       showMessage('success', goalEditing ? 'Meta actualizada' : 'Meta creada');
-      getAllTransactions().then(setAllTx).catch(() => {});
     } catch (err) {
       await logError('Rule502030View.handleSaveGoal', err);
       setGoalError(getReadableError(err));
@@ -412,7 +407,7 @@ export const BudgetRuleView = React.memo((props: BudgetRuleViewProps) => {
         ) : (
           <div className="grid grid-cols-2 gap-4">
             {savingsGoals.map(goal => {
-              const p = getGoalProgress(goal, allTx);
+              const p = getGoalProgress(goal, allTransactions);
               return (
                 <div key={goal.id} className="bg-bg-card border border-border-color rounded-xl p-4 flex flex-col gap-3">
                   {/* Goal header */}

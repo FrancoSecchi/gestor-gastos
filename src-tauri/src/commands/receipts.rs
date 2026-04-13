@@ -2,6 +2,24 @@ use base64::{engine::general_purpose, Engine as _};
 use std::path::Path;
 use tauri::Manager;
 
+fn validate_receipt_filename(filename: &str) -> Result<&str, String> {
+    if filename.is_empty() {
+        return Err("Nombre de archivo inválido".into());
+    }
+
+    let path = Path::new(filename);
+    let basename = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .ok_or_else(|| "Nombre de archivo inválido".to_string())?;
+
+    if basename != filename || basename == "." || basename == ".." {
+        return Err("Nombre de archivo inválido".into());
+    }
+
+    Ok(basename)
+}
+
 /// Copia el archivo `source` al directorio de comprobantes con el nombre `desired_filename`.
 /// Si ya existe un archivo con ese nombre, agrega un sufijo numérico (_2, _3, …).
 #[tauri::command]
@@ -12,6 +30,7 @@ pub async fn copy_to_receipts(
 ) -> Result<String, String> {
     let data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
     let receipts_dir = data_dir.join("receipts");
+    let desired_filename = validate_receipt_filename(&desired_filename)?.to_string();
 
     std::fs::create_dir_all(&receipts_dir)
         .map_err(|e| format!("No se pudo crear el directorio: {}", e))?;
@@ -39,7 +58,8 @@ pub async fn copy_to_receipts(
 #[tauri::command]
 pub async fn delete_receipt(app: tauri::AppHandle, filename: String) -> Result<(), String> {
     let data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
-    let file_path = data_dir.join("receipts").join(&filename);
+    let filename = validate_receipt_filename(&filename)?;
+    let file_path = data_dir.join("receipts").join(filename);
 
     if file_path.exists() {
         std::fs::remove_file(&file_path)
@@ -52,7 +72,8 @@ pub async fn delete_receipt(app: tauri::AppHandle, filename: String) -> Result<(
 #[tauri::command]
 pub async fn get_receipt_path(app: tauri::AppHandle, filename: String) -> Result<String, String> {
     let data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
-    let file_path = data_dir.join("receipts").join(&filename);
+    let filename = validate_receipt_filename(&filename)?;
+    let file_path = data_dir.join("receipts").join(filename);
     Ok(file_path.to_string_lossy().to_string())
 }
 
@@ -62,12 +83,13 @@ pub async fn read_receipt_as_data_url(
     filename: String,
 ) -> Result<String, String> {
     let data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
-    let file_path = data_dir.join("receipts").join(&filename);
+    let filename = validate_receipt_filename(&filename)?;
+    let file_path = data_dir.join("receipts").join(filename);
 
     let bytes =
         std::fs::read(&file_path).map_err(|e| format!("No se pudo leer el archivo: {}", e))?;
 
-    let ext = Path::new(&filename)
+    let ext = Path::new(filename)
         .extension()
         .and_then(|e| e.to_str())
         .unwrap_or("bin")

@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { Home, Gamepad2, PiggyBank, ChevronDown, ChevronUp, Target, ArrowRight } from 'lucide-react';
 import { Transaction, Rule502030Percentages, SavingsGoal } from '../../types';
 import { formatARS } from '../../lib/export';
-import { getAllTransactions } from '../../lib/db';
 import { calculateRule502030, DEFAULT_PERCENTAGES } from '../../lib/budgetRule';
 import { Rule502030Mapping } from '../../lib/budgetRuleMapping';
 import { InfoTooltip } from '../ui/InfoTooltip';
@@ -16,6 +15,7 @@ interface BudgetTabsWidgetProps {
   savingsGoals: SavingsGoal[];
   onNavigateGoals: () => void;
   showBudgetTab?: boolean;
+  allTransactions: Transaction[];
 }
 
 type Tab = 'budget' | 'goals';
@@ -71,20 +71,16 @@ export const BudgetTabsWidget: React.FC<BudgetTabsWidgetProps> = ({
   savingsGoals,
   onNavigateGoals,
   showBudgetTab = true,
+  allTransactions,
 }) => {
   const [tab, setTab] = useState<Tab>(showBudgetTab ? 'budget' : 'goals');
   const [mounted, setMounted] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
-  const [allTx, setAllTx] = useState<Transaction[]>([]);
 
   useEffect(() => {
     const t = setTimeout(() => setMounted(true), 100);
     return () => clearTimeout(t);
   }, []);
-
-  useEffect(() => {
-    getAllTransactions().then(setAllTx).catch(() => {});
-  }, [savingsGoals.length]);
 
   useEffect(() => {
     if (!showBudgetTab && tab === 'budget') {
@@ -285,7 +281,7 @@ export const BudgetTabsWidget: React.FC<BudgetTabsWidgetProps> = ({
               </div>
 
               {savingsGoals.map((goal, idx) => {
-                const { saved, pct, monthsLeft, isCompleted, isPastDue } = getGoalProgress(goal, allTx);
+                const { saved, pct, monthsLeft, isCompleted, isPastDue } = getGoalProgress(goal, allTransactions);
                 const barColor = isCompleted ? '#22c55e' : isPastDue ? '#ef4444' : '#3b82f6';
 
                 return (

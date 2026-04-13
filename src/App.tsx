@@ -3,25 +3,24 @@ import { Sidebar, ActiveView } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
 import { SummaryCards } from './components/dashboard/SummaryCards';
 import { ExpenseChart } from './components/dashboard/ExpenseChart';
-import { BudgetRuleWidget } from './components/dashboard/BudgetRuleWidget';
 import { BudgetTabsWidget } from './components/dashboard/BudgetTabsWidget';
 import { DollarRate } from './components/dashboard/DollarRate';
 import { RecurringPaymentsWidget } from './components/dashboard/RecurringPaymentsWidget';
 import { InsightsWidget } from './components/dashboard/InsightsWidget';
 import { RecentTransactions } from './components/dashboard/RecentTransactions';
 import { TransactionFilters } from './components/transactions/TransactionFilters';
-import { TransactionList } from './components/transactions/TransactionList';
-import { TransactionForm } from './components/transactions/TransactionForm';
-import { Settings } from './components/settings/Settings';
-import { CategoriesView } from './components/categories/CategoriesView';
-import { BudgetRuleView } from './components/budget-rule/BudgetRuleView';
-import { SavingsView } from './components/savings/SavingsView';
 import { ToastProvider, useToast } from './components/ui/Toast';
 
 // Lazy load heavy components
 const ClaudeAnalysis = lazy(() => import('./components/analysis/ClaudeAnalysis').then(m => ({ default: m.ClaudeAnalysis })));
 const DatabaseViewer = lazy(() => import('./components/database/DatabaseViewer').then(m => ({ default: m.DatabaseViewer })));
 const HousingView = lazy(() => import('./components/housing/HousingView').then(m => ({ default: m.HousingView })));
+const TransactionList = lazy(() => import('./components/transactions/TransactionList').then(m => ({ default: m.TransactionList })));
+const TransactionForm = lazy(() => import('./components/transactions/TransactionForm').then(m => ({ default: m.TransactionForm })));
+const Settings = lazy(() => import('./components/settings/Settings').then(m => ({ default: m.Settings })));
+const CategoriesView = lazy(() => import('./components/categories/CategoriesView').then(m => ({ default: m.CategoriesView })));
+const BudgetRuleView = lazy(() => import('./components/budget-rule/BudgetRuleView').then(m => ({ default: m.BudgetRuleView })));
+const SavingsView = lazy(() => import('./components/savings/SavingsView').then(m => ({ default: m.SavingsView })));
 import { CategoriesProvider } from './contexts/CategoriesContext';
 import { useCategoriesContext } from './hooks/useCategoriesContext';
 import { useTransactions } from './hooks/useTransactions';
@@ -33,7 +32,7 @@ import { useDollarRate } from './hooks/useDollarRate';
 import { useFilters } from './hooks/useFilters';
 import { Transaction, NewTransaction, RecurringPayment, RecurrenceFrequency, RECURRENCE_LABELS } from './types';
 import { exportToExcel, exportForClaude } from './lib/export';
-import { getReadableError, logError, getTransactions, createRecurringPayment, getRule502030Enabled, setRule502030Enabled } from './lib/db';
+import { getReadableError, logError, getTransactions, getAllTransactions, createRecurringPayment, getRule502030Enabled, setRule502030Enabled } from './lib/db';
 import { calculateRule502030 } from './lib/budgetRule';
 import {
   getDefaultRule502030Mapping,
@@ -178,6 +177,7 @@ function AppInner() {
 
   // Current month transactions for the recurring payments widget
   const [currentMonthTransactions, setCurrentMonthTransactions] = useState<Transaction[]>([]);
+  const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
 
   const { filters, dateRange, setDateFilter, setCustomRange, setTypeFilter, setCategoryFilter, toggleQuickFilter } = useFilters();
   const { transactions, summary, loading, addTransaction, editTransaction, removeTransaction, clearDatabase, refresh: refreshTransactions } = useTransactions(
@@ -236,8 +236,22 @@ function AppInner() {
   }, [filters.dateFilter, dateRange.start, dateRange.end]);
 
   useEffect(() => {
-    getTransactions(previousDateRange.start, previousDateRange.end).then(setPreviousTransactions);
-  }, [previousDateRange.start, previousDateRange.end]);
+    if (activeView !== 'dashboard') return;
+
+    let cancelled = false;
+
+    getTransactions(previousDateRange.start, previousDateRange.end)
+      .then(txs => {
+        if (!cancelled) setPreviousTransactions(txs);
+      })
+      .catch(() => {
+        if (!cancelled) setPreviousTransactions([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeView, previousDateRange.start, previousDateRange.end]);
 
   // Projected balance (only for current_month, min 3 days elapsed)
   const projectedBalance = React.useMemo(() => {
@@ -283,9 +297,18 @@ function AppInner() {
     setCurrentMonthTransactions(txs);
   }, []);
 
+  const refreshAllTransactions = useCallback(async () => {
+    const txs = await getAllTransactions();
+    setAllTransactions(txs);
+  }, []);
+
   useEffect(() => {
     refreshCurrentMonthTransactions();
   }, [refreshCurrentMonthTransactions]);
+
+  useEffect(() => {
+    refreshAllTransactions().catch(() => {});
+  }, [refreshAllTransactions]);
 
   const {
     mapping: rule502030Mapping,
@@ -375,6 +398,7 @@ function AppInner() {
           txToEdit = { ...txToEdit, recurring_id: recurring.id };
         }
         await editTransaction(txToEdit);
+        await refreshAllTransactions();
         toast.success('Transacción actualizada', 'Los cambios fueron guardados correctamente.');
       } else {
         let txToSave = tx as NewTransaction;
@@ -394,6 +418,7 @@ function AppInner() {
           toast.success('Pago recurrente creado', `Se guardó como ${RECURRENCE_LABELS[recurringFrequency].toLowerCase()}.`);
         }
         await addTransaction(txToSave);
+        await refreshAllTransactions();
         if (!recurringFrequency) {
           toast.success('Transacción agregada', `Se registró ${tx.type === 'income' ? 'el ingreso' : 'el gasto'} exitosamente.`);
         }
@@ -410,25 +435,28 @@ function AppInner() {
       }
       // Si fue edición sin crear recurrente, solo refrescar mes actual
       if (isEdit) {
-        await refreshCurrentMonthTransactions();
-      }
-    } catch (err) {
+      await refreshCurrentMonthTransactions();
+    }
+  } catch (err) {
       await logError('App.handleSaveTransaction', err);
       toast.error('Error al guardar', getReadableError(err));
       throw err;
     }
-  }, [addTransaction, editTransaction, toast, refreshRecurring, refreshCurrentMonthTransactions, refreshTransactions, dateRange.start, dateRange.end]);
+  }, [addTransaction, editTransaction, toast, refreshRecurring, refreshCurrentMonthTransactions, refreshTransactions, refreshAllTransactions, dateRange.start, dateRange.end]);
 
   const handleUnmarkRecurring = useCallback(async (tx: Transaction) => {
     try {
       await editTransaction({ ...tx, recurring_id: null });
-      await refreshTransactions(dateRange.start, dateRange.end);
+      await Promise.all([
+        refreshTransactions(dateRange.start, dateRange.end),
+        refreshAllTransactions(),
+      ]);
       toast.success('Recurrente eliminado', 'La transacción ya no está vinculada a ningún pago recurrente.');
     } catch (err) {
       await logError('App.handleUnmarkRecurring', err);
       toast.error('Error', getReadableError(err));
     }
-  }, [editTransaction, refreshTransactions, dateRange.start, dateRange.end, toast]);
+  }, [editTransaction, refreshTransactions, refreshAllTransactions, dateRange.start, dateRange.end, toast]);
 
   const handleMarkRecurring = useCallback(async (tx: Transaction, frequency: RecurrenceFrequency) => {
     try {
@@ -441,13 +469,18 @@ function AppInner() {
         frequency,
       });
       await editTransaction({ ...tx, recurring_id: recurring.id });
-      await Promise.all([refreshRecurring(), refreshTransactions(dateRange.start, dateRange.end), refreshCurrentMonthTransactions()]);
+      await Promise.all([
+        refreshRecurring(),
+        refreshTransactions(dateRange.start, dateRange.end),
+        refreshCurrentMonthTransactions(),
+        refreshAllTransactions(),
+      ]);
       toast.success('Pago recurrente creado', `Marcado como ${RECURRENCE_LABELS[frequency].toLowerCase()}.`);
     } catch (err) {
       await logError('App.handleMarkRecurring', err);
       toast.error('Error', getReadableError(err));
     }
-  }, [editTransaction, refreshRecurring, refreshTransactions, refreshCurrentMonthTransactions, dateRange.start, dateRange.end, toast]);
+  }, [editTransaction, refreshRecurring, refreshTransactions, refreshCurrentMonthTransactions, refreshAllTransactions, dateRange.start, dateRange.end, toast]);
 
   const handleEdit = useCallback((tx: Transaction) => {
     setEditingTx(tx);
@@ -486,29 +519,33 @@ function AppInner() {
       const tx = transactions.find(t => t.id === id);
       if (tx?.receipt_path) await deleteReceiptFile(tx.receipt_path);
       await removeTransaction(id);
+      await refreshAllTransactions();
       toast.success('Transacción eliminada', 'La transacción fue eliminada correctamente.');
     } catch (err) {
       await logError('App.handleDelete', err);
       toast.error('Error al eliminar', getReadableError(err));
     }
-  }, [removeTransaction, transactions, toast]);
+  }, [removeTransaction, refreshAllTransactions, transactions, toast]);
 
   const handleClearAllData = useCallback(async () => {
     try {
       await clearDatabase();
-      await refreshRule502030Mapping();
+      await Promise.all([
+        refreshRule502030Mapping(),
+        refreshAllTransactions(),
+      ]);
       toast.success('Base de datos limpiada', 'Se eliminó toda la información guardada.');
     } catch (err) {
       await logError('App.handleClearAllData', err);
       toast.error('Error al limpiar', getReadableError(err));
       throw err;
     }
-  }, [clearDatabase, refreshRule502030Mapping, toast]);
+  }, [clearDatabase, refreshRule502030Mapping, refreshAllTransactions, toast]);
 
   const handleExportExcel = useCallback(async () => {
     if (!summary) return;
     try {
-      exportToExcel(transactions, summary, dateRange.start, dateRange.end);
+      await exportToExcel(transactions, summary, dateRange.start, dateRange.end);
       toast.success('Exportación exitosa', 'El archivo Excel fue generado correctamente.');
     } catch (err) {
       console.error('Error exporting Excel:', err);
@@ -614,6 +651,7 @@ function AppInner() {
                     savingsGoals={savingsGoals}
                     onNavigateGoals={() => setActiveView('budgetRule')}
                     showBudgetTab={rule502030Enabled}
+                    allTransactions={allTransactions}
                   />
                   {recurringPayments?.length > 0 && (
                     <RecurringPaymentsWidget
@@ -656,20 +694,22 @@ function AppInner() {
                 onToggleQuickFilter={toggleQuickFilter}
               />
               <div className="flex-1 overflow-hidden">
-                <TransactionList
-                  transactions={transactions}
-                  filters={filters}
-                  loading={loading}
-                  categoryIcons={categoryIcons}
-                  onAdd={handleOpenForm}
-                  onEdit={handleEdit}
-                  onDelete={handleDelete}
-                  onClearAll={handleClearAllData}
-                  onExportExcel={handleExportExcel}
-                  onExportClaude={handleExportClaude}
-                  onMarkRecurring={handleMarkRecurring}
-                  onUnmarkRecurring={handleUnmarkRecurring}
-                />
+                <Suspense fallback={<div className="flex items-center justify-center h-full"><p className="text-text-secondary">Cargando movimientos...</p></div>}>
+                  <TransactionList
+                    transactions={transactions}
+                    filters={filters}
+                    loading={loading}
+                    categoryIcons={categoryIcons}
+                    onAdd={handleOpenForm}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                    onClearAll={handleClearAllData}
+                    onExportExcel={handleExportExcel}
+                    onExportClaude={handleExportClaude}
+                    onMarkRecurring={handleMarkRecurring}
+                    onUnmarkRecurring={handleUnmarkRecurring}
+                  />
+                </Suspense>
               </div>
             </div>
           )}
@@ -706,60 +746,67 @@ function AppInner() {
 
           {activeView === 'categories' && (
             <div className="animate-fade-in">
-              <CategoriesView
-                transactions={transactions}
-                expenseCategories={expenseCategories}
-                incomeCategories={incomeCategories}
-                customExpenseCategories={expenseCategories.filter(c => !['Comida', 'Transporte', 'Bienestar', 'Servicios', 'Suscripciones', 'Otros'].includes(c))}
-                customIncomeCategories={incomeCategories.filter(c => !['Salario', 'Freelance', 'Otros'].includes(c))}
-                categoryIcons={categoryIcons}
-                onSetIcon={setCategoryIcon}
-                onAddExpense={addCustomExpenseCategory}
-                onAddIncome={addCustomIncomeCategory}
-                onRemoveExpense={removeCustomExpenseCategory}
-                onRemoveIncome={removeCustomIncomeCategory}
-                onRenameExpense={handleRenameExpenseCategory}
-                onRenameIncome={handleRenameIncomeCategory}
-              />
+              <Suspense fallback={<div className="flex items-center justify-center h-48"><p className="text-text-secondary">Cargando categorías...</p></div>}>
+                <CategoriesView
+                  transactions={transactions}
+                  expenseCategories={expenseCategories}
+                  incomeCategories={incomeCategories}
+                  customExpenseCategories={expenseCategories.filter(c => !['Comida', 'Transporte', 'Bienestar', 'Servicios', 'Suscripciones', 'Otros'].includes(c))}
+                  customIncomeCategories={incomeCategories.filter(c => !['Salario', 'Freelance', 'Otros'].includes(c))}
+                  categoryIcons={categoryIcons}
+                  onSetIcon={setCategoryIcon}
+                  onAddExpense={addCustomExpenseCategory}
+                  onAddIncome={addCustomIncomeCategory}
+                  onRemoveExpense={removeCustomExpenseCategory}
+                  onRemoveIncome={removeCustomIncomeCategory}
+                  onRenameExpense={handleRenameExpenseCategory}
+                  onRenameIncome={handleRenameIncomeCategory}
+                />
+              </Suspense>
             </div>
           )}
 
           {activeView === 'budgetRule' && (
             <div className="animate-fade-in">
-              <BudgetRuleView
-                transactions={transactions}
-                totalIncome={summary?.total_income ?? 0}
-                expenseCategories={expenseCategories}
-                mapping={rule502030Mapping}
-                effectiveMapping={effectiveRule502030Mapping}
-                percentages={rule502030Percentages}
-                startDate={dateRange.start}
-                endDate={dateRange.end}
-                savingsGoals={savingsGoals}
-                savingsGoalsLoading={savingsGoalsLoading}
-                rule502030Enabled={rule502030Enabled}
-                onToggleRule502030={toggleRule502030}
-                onCreateGoal={async goal => { await addGoal(goal); }}
-                onUpdateGoal={async goal => { await updateGoal(goal); }}
-                onRemoveGoal={async id => { await removeGoal(id); }}
-                onSave={updateRule502030Mapping}
-                onSavePercentages={updateRule502030Percentages}
-                onReset={async () => {
-                  await updateRule502030Mapping(
-                    ensureMappingCoversCategories(getDefaultRule502030Mapping(), expenseCategories)
-                  );
-                }}
-              />
+              <Suspense fallback={<div className="flex items-center justify-center h-48"><p className="text-text-secondary">Cargando metas...</p></div>}>
+                <BudgetRuleView
+                  transactions={transactions}
+                  totalIncome={summary?.total_income ?? 0}
+                  expenseCategories={expenseCategories}
+                  mapping={rule502030Mapping}
+                  effectiveMapping={effectiveRule502030Mapping}
+                  percentages={rule502030Percentages}
+                  startDate={dateRange.start}
+                  endDate={dateRange.end}
+                  allTransactions={allTransactions}
+                  savingsGoals={savingsGoals}
+                  savingsGoalsLoading={savingsGoalsLoading}
+                  rule502030Enabled={rule502030Enabled}
+                  onToggleRule502030={toggleRule502030}
+                  onCreateGoal={async goal => { await addGoal(goal); }}
+                  onUpdateGoal={async goal => { await updateGoal(goal); }}
+                  onRemoveGoal={async id => { await removeGoal(id); }}
+                  onSave={updateRule502030Mapping}
+                  onSavePercentages={updateRule502030Percentages}
+                  onReset={async () => {
+                    await updateRule502030Mapping(
+                      ensureMappingCoversCategories(getDefaultRule502030Mapping(), expenseCategories)
+                    );
+                  }}
+                />
+              </Suspense>
             </div>
           )}
 
           {activeView === 'savings' && (
             <div className="animate-fade-in">
-              <SavingsView
-                dollarRates={rates}
-                dollarLoading={dollarLoading}
-                rule502030Mapping={rule502030Mapping}
-              />
+              <Suspense fallback={<div className="flex items-center justify-center h-48"><p className="text-text-secondary">Cargando ahorros...</p></div>}>
+                <SavingsView
+                  dollarRates={rates}
+                  dollarLoading={dollarLoading}
+                  rule502030Mapping={rule502030Mapping}
+                />
+              </Suspense>
             </div>
           )}
 
@@ -788,7 +835,9 @@ function AppInner() {
 
           {activeView === 'settings' && (
             <div className="animate-fade-in">
-              <Settings onClearAllData={handleClearAllData} />
+              <Suspense fallback={<div className="flex items-center justify-center h-48"><p className="text-text-secondary">Cargando ajustes...</p></div>}>
+                <Settings onClearAllData={handleClearAllData} />
+              </Suspense>
             </div>
           )}
         </main>
@@ -796,21 +845,23 @@ function AppInner() {
 
       {/* Transaction form modal */}
       {showForm && (
-        <TransactionForm
-          transaction={editingTx}
-          initialType={formInitialType}
-          recurringTemplate={recurringTemplate}
-          recurringPayments={recurringPayments}
-          expenseCategories={expenseCategories}
-          incomeCategories={incomeCategories}
-          categoryIcons={categoryIcons}
-          housingContract={housingContract}
-          dollarRates={rates}
-          savingsGoals={savingsGoals}
-          onAddCustomCategory={handleAddCustomCategory}
-          onSave={handleSaveTransaction}
-          onClose={handleCloseForm}
-        />
+        <Suspense fallback={<div className="fixed inset-0 z-50 bg-black/40" />}>
+          <TransactionForm
+            transaction={editingTx}
+            initialType={formInitialType}
+            recurringTemplate={recurringTemplate}
+            recurringPayments={recurringPayments}
+            expenseCategories={expenseCategories}
+            incomeCategories={incomeCategories}
+            categoryIcons={categoryIcons}
+            housingContract={housingContract}
+            dollarRates={rates}
+            savingsGoals={savingsGoals}
+            onAddCustomCategory={handleAddCustomCategory}
+            onSave={handleSaveTransaction}
+            onClose={handleCloseForm}
+          />
+        </Suspense>
       )}
     </div>
   );

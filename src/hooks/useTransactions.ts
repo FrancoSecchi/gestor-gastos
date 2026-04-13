@@ -62,9 +62,6 @@ export function useTransactions(startDate: string, endDate: string): UseTransact
       recurring_id: null,
     };
     
-    const prevTransactions = transactions;
-    const prevSummary = summary;
-    
     setTransactions(prev => [...prev, optimisticTx]);
     
     try {
@@ -76,18 +73,13 @@ export function useTransactions(startDate: string, endDate: string): UseTransact
       setSummary(newSummary);
       return newTx;
     } catch (err) {
-      // Rollback on error
-      setTransactions(prevTransactions);
-      setSummary(prevSummary);
+      await refresh(startDate, endDate);
       await logError('useTransactions.addTransaction', err);
       throw err;
     }
-  }, [transactions, summary, startDate, endDate]);
+  }, [startDate, endDate, refresh]);
 
   const editTransaction = useCallback(async (tx: Transaction): Promise<Transaction> => {
-    const prevTransactions = transactions;
-    const prevSummary = summary;
-    
     // Optimistic update
     setTransactions(prev => prev.map(t => t.id === tx.id ? tx : t));
     
@@ -100,18 +92,13 @@ export function useTransactions(startDate: string, endDate: string): UseTransact
       setSummary(newSummary);
       return updated;
     } catch (err) {
-      // Rollback on error
-      setTransactions(prevTransactions);
-      setSummary(prevSummary);
+      await refresh(startDate, endDate);
       await logError('useTransactions.editTransaction', err);
       throw err;
     }
-  }, [transactions, summary, startDate, endDate]);
+  }, [startDate, endDate, refresh]);
 
   const removeTransaction = useCallback(async (id: string): Promise<void> => {
-    const prevTransactions = transactions;
-    const prevSummary = summary;
-    
     // Optimistic update
     setTransactions(prev => prev.filter(t => t.id !== id));
     
@@ -121,13 +108,11 @@ export function useTransactions(startDate: string, endDate: string): UseTransact
       const newSummary = await getSummary(startDate, endDate);
       setSummary(newSummary);
     } catch (err) {
-      // Rollback on error
-      setTransactions(prevTransactions);
-      setSummary(prevSummary);
+      await refresh(startDate, endDate);
       await logError('useTransactions.removeTransaction', err);
       throw err;
     }
-  }, [transactions, summary, startDate, endDate]);
+  }, [startDate, endDate, refresh]);
 
   const clearDatabase = useCallback(async (): Promise<void> => {
     await clearAllData();

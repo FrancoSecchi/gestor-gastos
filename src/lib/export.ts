@@ -1,14 +1,14 @@
-import * as XLSX from 'xlsx';
 import { Transaction, Summary, Rule502030Data } from '../types';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-export function exportToExcel(
+export async function exportToExcel(
   transactions: Transaction[],
   summary: Summary,
   startDate: string,
   endDate: string
-): void {
+): Promise<void> {
+  const XLSX = await import('xlsx');
   const wb = XLSX.utils.book_new();
 
   // Sheet 1: Transactions
