@@ -1,13 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { Save, Eye, EyeOff, Key, Trash2, AlertCircle, CheckCircle, ExternalLink, Shield, Database, Cpu, Percent } from 'lucide-react';
+import { Save, Eye, EyeOff, Key, Trash2, AlertCircle, CheckCircle, ExternalLink, Shield, Database, Cpu, Percent, Coins } from 'lucide-react';
 import { getRule502030Enabled, setRule502030Enabled, getSetting, setSetting, getReadableError, logError, getErrorLogs } from '../../lib/db';
+import { CurrencyCode, CurrencyInfo, SUPPORTED_CURRENCIES } from '../../types';
 
 interface SettingsProps {
   onClearAllData: () => Promise<void>;
+  selectedCurrency: CurrencyInfo;
+  onCurrencyChange: (code: CurrencyCode) => Promise<void>;
 }
 
 export const Settings: React.FC<SettingsProps> = ({
   onClearAllData,
+  selectedCurrency,
+  onCurrencyChange,
 }) => {
   const [apiKey, setApiKey] = useState('');
   const [showKey, setShowKey] = useState(false);
@@ -141,7 +146,50 @@ export const Settings: React.FC<SettingsProps> = ({
         <p className="text-sm text-text-secondary mt-1">Personalizá la aplicación según tus preferencias.</p>
       </div>
 
-      {/* Claude API Key */}
+      {/* Currency selection */}
+      <div className="bg-bg-card border border-border-color rounded-xl p-5">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-accent-green/20 to-accent-blue/20 flex items-center justify-center border border-accent-green/20">
+            <Coins size={16} className="text-accent-green" />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-text-primary">Moneda local</h3>
+            <p className="text-xs text-text-secondary">Elegí la moneda en que registrás tus gastos.</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {SUPPORTED_CURRENCIES.map(c => (
+            <button
+              key={c.code}
+              type="button"
+              onClick={() => onCurrencyChange(c.code)}
+              className={`
+                flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-sm transition-all duration-150 text-left
+                ${selectedCurrency.code === c.code
+                  ? 'bg-accent-green/10 border-accent-green/40 text-accent-green font-semibold'
+                  : 'bg-bg-secondary border-border-color text-text-secondary hover:border-border-color/80 hover:text-text-primary'
+                }
+              `}
+            >
+              <span className="text-base leading-none">{c.symbol}</span>
+              <div className="min-w-0">
+                <p className="font-medium text-xs leading-tight truncate">{c.code}</p>
+                <p className="text-xs opacity-70 leading-tight truncate">{c.name}</p>
+              </div>
+              {selectedCurrency.code === c.code && (
+                <CheckCircle size={13} className="ml-auto flex-shrink-0" />
+              )}
+            </button>
+          ))}
+        </div>
+        {selectedCurrency.code !== 'ARS' && (
+          <p className="text-xs text-text-secondary mt-3 bg-bg-secondary rounded-lg px-3 py-2 border border-border-color/50">
+            Al usar una moneda distinta del Peso argentino, se ocultan las cotizaciones del dólar y se muestran conversiones entre monedas internacionales.
+          </p>
+        )}
+      </div>
+
+      {/* Regla 50/30/20 */}
       <div className="bg-bg-card border border-border-color rounded-xl p-5">
         <div className="flex items-center gap-3 mb-5">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-accent-purple/20 to-accent-blue/20 flex items-center justify-center border border-accent-purple/20">

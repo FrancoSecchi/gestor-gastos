@@ -9,6 +9,7 @@ import { TrendingUp, DollarSign, Percent, Flame, ChevronDown, Pencil, Check, X }
 import { useSavings, Rule502030Mapping, InitialBalanceMeta } from '../../hooks/useSavings';
 import { DollarRate } from '../../types';
 import { formatARS } from '../../lib/export';
+import { useCurrencyFormat } from '../../contexts/CurrencyContext';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -28,50 +29,52 @@ const DOLLAR_LABELS: Record<string, string> = {
   cripto: 'Cripto',
 };
 
-function fmtARS(n: number): string {
-  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `$${(n / 1_000).toFixed(0)}k`;
-  return `$${formatARS(n)}`;
+// fmtARS is used for chart tick labels — needs fmt from context, so it's used inline with fmt
+function fmtARSCompact(n: number, fmtFn: (v: number) => string): string {
+  if (n >= 1_000_000) return fmtFn(n / 1_000_000).replace(/(\d)$/, '$1M');
+  if (n >= 1_000) return fmtFn(Math.round(n / 1_000)) + 'k';
+  return fmtFn(n);
 }
 
 function fmtUSD(n: number): string {
   return `U$S ${n.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 }
 
-const CustomTooltipAccum = ({ active, payload, label }: any) => {
-  if (!active || !payload?.length) return null;
-  return (
-    <div className="bg-bg-card border border-border-color rounded-xl px-3 py-2.5 shadow-xl text-xs space-y-1">
-      <p className="font-semibold text-text-primary">{label}</p>
-      {payload.map((p: any) => (
-        <p key={p.dataKey} style={{ color: p.color }}>
-          {p.name}: <span className="font-bold">{p.dataKey === 'cumulativeUsd' ? fmtUSD(p.value) : fmtARS(p.value)}</span>
-        </p>
-      ))}
-    </div>
-  );
-};
-
-const CustomTooltipMonthly = ({ active, payload, label }: any) => {
-  if (!active || !payload?.length) return null;
-  return (
-    <div className="bg-bg-card border border-border-color rounded-xl px-3 py-2.5 shadow-xl text-xs space-y-1">
-      <p className="font-semibold text-text-primary">{label}</p>
-      {payload.map((p: any) => (
-        <p key={p.dataKey} style={{ color: p.color }}>
-          {p.name}: <span className="font-bold">{fmtARS(p.value)}</span>
-        </p>
-      ))}
-    </div>
-  );
-};
-
 export const SavingsView: React.FC<SavingsViewProps> = ({
   dollarRates,
   dollarLoading,
   rule502030Mapping,
 }) => {
+  const { fmt, currency } = useCurrencyFormat();
   const { data, loading, refresh, saveInitialBalance } = useSavings(rule502030Mapping);
+
+  const CustomTooltipAccum = ({ active, payload, label }: any) => {
+    if (!active || !payload?.length) return null;
+    return (
+      <div className="bg-bg-card border border-border-color rounded-xl px-3 py-2.5 shadow-xl text-xs space-y-1">
+        <p className="font-semibold text-text-primary">{label}</p>
+        {payload.map((p: any) => (
+          <p key={p.dataKey} style={{ color: p.color }}>
+            {p.name}: <span className="font-bold">{p.dataKey === 'cumulativeUsd' ? fmtUSD(p.value) : fmtARSCompact(p.value, fmt)}</span>
+          </p>
+        ))}
+      </div>
+    );
+  };
+
+  const CustomTooltipMonthly = ({ active, payload, label }: any) => {
+    if (!active || !payload?.length) return null;
+    return (
+      <div className="bg-bg-card border border-border-color rounded-xl px-3 py-2.5 shadow-xl text-xs space-y-1">
+        <p className="font-semibold text-text-primary">{label}</p>
+        {payload.map((p: any) => (
+          <p key={p.dataKey} style={{ color: p.color }}>
+            {p.name}: <span className="font-bold">{fmtARSCompact(p.value, fmt)}</span>
+          </p>
+        ))}
+      </div>
+    );
+  };
   const [selectedDollar, setSelectedDollar] = useState<string>('blue');
   const [showDollarMenu, setShowDollarMenu] = useState(false);
   const [showUsd, setShowUsd] = useState(false);
@@ -176,51 +179,53 @@ export const SavingsView: React.FC<SavingsViewProps> = ({
   return (
     <div className="flex flex-col gap-5 animate-fade-in">
 
-      {/* Header row: dollar selector + USD toggle */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-text-secondary">Cotización:</span>
-          <div className="relative">
-            <button
-              onClick={() => setShowDollarMenu(p => !p)}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border-color bg-bg-card text-xs font-medium text-text-primary hover:border-accent-blue/40 transition-colors"
-            >
-              {DOLLAR_LABELS[selectedDollar] ?? selectedDollar}
-              {currentRate && (
-                <span className="text-text-secondary font-normal">${formatARS(currentRate.venta)}</span>
-              )}
-              <ChevronDown size={12} className="text-text-secondary" />
-            </button>
-            {showDollarMenu && (
-              <div className="absolute top-full mt-1 left-0 z-20 bg-bg-card border border-border-color rounded-xl shadow-xl py-1 min-w-36">
-                {dollarLoading ? (
-                  <p className="px-3 py-2 text-xs text-text-secondary">Cargando…</p>
-                ) : dollarRates.length === 0 ? (
-                  <p className="px-3 py-2 text-xs text-text-secondary">Sin datos</p>
-                ) : (
-                  dollarRates.map(rate => (
-                    <button
-                      key={rate.casa}
-                      onClick={() => { setSelectedDollar(rate.casa); setShowDollarMenu(false); }}
-                      className={`w-full flex items-center justify-between px-3 py-1.5 text-xs hover:bg-bg-secondary transition-colors ${selectedDollar === rate.casa ? 'text-accent-blue' : 'text-text-primary'}`}
-                    >
-                      <span>{DOLLAR_LABELS[rate.casa] ?? rate.casa}</span>
-                      <span className="text-text-secondary">${formatARS(rate.venta)}</span>
-                    </button>
-                  ))
+      {/* Header row: dollar selector + USD toggle — solo para ARS */}
+      {currency.code === 'ARS' && (
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-text-secondary">Cotización:</span>
+            <div className="relative">
+              <button
+                onClick={() => setShowDollarMenu(p => !p)}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border-color bg-bg-card text-xs font-medium text-text-primary hover:border-accent-blue/40 transition-colors"
+              >
+                {DOLLAR_LABELS[selectedDollar] ?? selectedDollar}
+                {currentRate && (
+                  <span className="text-text-secondary font-normal">${formatARS(currentRate.venta)}</span>
                 )}
-              </div>
-            )}
+                <ChevronDown size={12} className="text-text-secondary" />
+              </button>
+              {showDollarMenu && (
+                <div className="absolute top-full mt-1 left-0 z-20 bg-bg-card border border-border-color rounded-xl shadow-xl py-1 min-w-36">
+                  {dollarLoading ? (
+                    <p className="px-3 py-2 text-xs text-text-secondary">Cargando…</p>
+                  ) : dollarRates.length === 0 ? (
+                    <p className="px-3 py-2 text-xs text-text-secondary">Sin datos</p>
+                  ) : (
+                    dollarRates.map(rate => (
+                      <button
+                        key={rate.casa}
+                        onClick={() => { setSelectedDollar(rate.casa); setShowDollarMenu(false); }}
+                        className={`w-full flex items-center justify-between px-3 py-1.5 text-xs hover:bg-bg-secondary transition-colors ${selectedDollar === rate.casa ? 'text-accent-blue' : 'text-text-primary'}`}
+                      >
+                        <span>{DOLLAR_LABELS[rate.casa] ?? rate.casa}</span>
+                        <span className="text-text-secondary">${formatARS(rate.venta)}</span>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
           </div>
+          <button
+            onClick={() => setShowUsd(p => !p)}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-colors ${showUsd ? 'border-accent-blue/40 bg-accent-blue/10 text-accent-blue' : 'border-border-color bg-bg-card text-text-secondary hover:text-text-primary'}`}
+          >
+            <DollarSign size={12} />
+            Ver en USD
+          </button>
         </div>
-        <button
-          onClick={() => setShowUsd(p => !p)}
-          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-colors ${showUsd ? 'border-accent-blue/40 bg-accent-blue/10 text-accent-blue' : 'border-border-color bg-bg-card text-text-secondary hover:text-text-primary'}`}
-        >
-          <DollarSign size={12} />
-          Ver en USD
-        </button>
-      </div>
+      )}
 
       {/* Saldo inicial de base */}
       <div className={`px-4 py-3 rounded-xl border bg-bg-card ${editingInitial ? 'border-accent-blue/30' : 'border-border-color'}`}>
@@ -233,14 +238,14 @@ export const SavingsView: React.FC<SavingsViewProps> = ({
                   <span className="text-sm font-bold text-text-primary tabular-nums">
                     {data.initialBalanceMeta.currency === 'USD'
                       ? `U$S ${data.initialBalanceMeta.amount.toLocaleString('es-AR')}`
-                      : `$${formatARS(initialBalance)}`}
+                      : fmt(initialBalance)}
                   </span>
                   {data.initialBalanceMeta.currency === 'USD' && (
                     <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent-blue/10 text-accent-blue font-medium uppercase">
                       {DOLLAR_LABELS[data.initialBalanceMeta.dollarType ?? ''] ?? data.initialBalanceMeta.dollarType}
                     </span>
                   )}
-                  <span className="text-xs text-text-secondary">≈ ${formatARS(initialBalance)} ARS</span>
+                  <span className="text-xs text-text-secondary">≈ {fmt(initialBalance)} ARS</span>
                 </div>
               ) : (
                 <span className="text-text-secondary font-normal text-xs italic">Sin configurar</span>
@@ -328,14 +333,14 @@ export const SavingsView: React.FC<SavingsViewProps> = ({
         <StatCard
           icon={<span className="text-lg">🐷</span>}
           label="Saldo neto"
-          value={showUsd && currentRate ? fmtUSD(equivalentUsd) : `$${formatARS(totalSavings)}`}
+          value={showUsd && currentRate ? fmtUSD(equivalentUsd) : fmt(totalSavings)}
           sub={(() => {
             const meta = data?.initialBalanceMeta;
             if (meta && meta.currency === 'USD') {
               return `Incluye U$S ${meta.amount.toLocaleString('es-AR')} (${DOLLAR_LABELS[meta.dollarType ?? ''] ?? meta.dollarType}) de base`;
             }
-            if (initialBalance > 0) return `Incluye $${formatARS(initialBalance)} ARS de base`;
-            if (showUsd && currentRate) return `ARS: $${formatARS(totalSavings)}`;
+            if (initialBalance > 0) return `Incluye ${fmt(initialBalance)} ARS de base`;
+            if (showUsd && currentRate) return `ARS: ${fmt(totalSavings)}`;
             return totalUsd > 0 ? `+ ${fmtUSD(totalUsd)} guardados` : undefined;
           })()}
           color="green"
@@ -343,14 +348,14 @@ export const SavingsView: React.FC<SavingsViewProps> = ({
         <StatCard
           icon={<TrendingUp size={16} className="text-accent-green" />}
           label="Total depositado"
-          value={`$${formatARS(data.totalDeposited)}`}
+          value={fmt(data.totalDeposited)}
           sub={`${(data.totalDeposited / (data.totalDeposited + data.totalWithdrawn) * 100).toFixed(0)}% del total`}
           color="green"
         />
         <StatCard
           icon={<span className="text-lg">🏧</span>}
           label="Total retirado"
-          value={`$${formatARS(data.totalWithdrawn)}`}
+          value={fmt(data.totalWithdrawn)}
           sub={`${(data.totalWithdrawn / (data.totalDeposited + data.totalWithdrawn) * 100).toFixed(0)}% del total`}
           color="yellow"
         />
@@ -367,21 +372,21 @@ export const SavingsView: React.FC<SavingsViewProps> = ({
       <div className="grid grid-cols-3 gap-3">
         <InsightCard
           label="Mes actual"
-          value={`$${formatARS(currentMonth.net)}`}
+          value={fmt(currentMonth.net)}
           sub={(() => {
             if (thisMonthVsTarget === null) return 'Sin ingresos registrados';
             const missing = currentMonth.target - currentMonth.net;
             if (missing <= 0) return '✅ Meta alcanzada este mes';
             if (showUsd && currentRate) {
-              return `⚠️ Faltan ${fmtUSD(missing / currentRate.venta)} (${fmtARS(missing)})`;
+              return `⚠️ Faltan ${fmtUSD(missing / currentRate.venta)} (${fmt(missing)})`;
             }
-            return `⚠️ Faltan $${formatARS(missing)} para el 20%`;
+            return `⚠️ Faltan ${fmt(missing)} para el 20%`;
           })()}
           highlight={thisMonthVsTarget !== null && thisMonthVsTarget >= 100}
         />
         <InsightCard
           label="Mejor mes"
-          value={bestMonth ? `$${formatARS(bestMonth.net)}` : '—'}
+          value={bestMonth ? fmt(bestMonth.net) : '—'}
           sub={bestMonth?.label}
         />
         <InsightCard
@@ -419,7 +424,7 @@ export const SavingsView: React.FC<SavingsViewProps> = ({
                 tick={{ fill: '#6b7280', fontSize: 10 }}
                 axisLine={false}
                 tickLine={false}
-                tickFormatter={v => fmtARS(v)}
+                tickFormatter={v => fmtARSCompact(v, fmt)}
                 width={50}
               />
               <Tooltip content={CustomTooltipAccum} />
@@ -467,7 +472,7 @@ export const SavingsView: React.FC<SavingsViewProps> = ({
                 tick={{ fill: '#6b7280', fontSize: 10 }}
                 axisLine={false}
                 tickLine={false}
-                tickFormatter={v => fmtARS(v)}
+                tickFormatter={v => fmtARSCompact(v, fmt)}
                 width={50}
               />
               <Tooltip content={CustomTooltipMonthly} />
@@ -513,17 +518,17 @@ export const SavingsView: React.FC<SavingsViewProps> = ({
           </div>
           <div className="rounded-xl border border-border-color bg-bg-secondary px-4 py-3 flex flex-col gap-1">
             <p className="text-[10px] uppercase tracking-wider text-text-secondary font-semibold">Meta promedio</p>
-            <p className="text-base font-bold tabular-nums text-yellow-400">{fmtARS(avgTarget)}</p>
+            <p className="text-base font-bold tabular-nums text-yellow-400">{fmt(avgTarget)}</p>
             <p className="text-[11px] text-text-secondary">20% del ingreso promedio</p>
           </div>
           <div className="rounded-xl border border-border-color bg-bg-secondary px-4 py-3 flex flex-col gap-1">
             <p className="text-[10px] uppercase tracking-wider text-text-secondary font-semibold">Déficit acumulado</p>
-            <p className="text-base font-bold tabular-nums text-accent-red">{fmtARS(totalDeficit)}</p>
+            <p className="text-base font-bold tabular-nums text-accent-red">{fmt(totalDeficit)}</p>
             <p className="text-[11px] text-text-secondary">Suma de meses bajo meta</p>
           </div>
           <div className="rounded-xl border border-border-color bg-bg-secondary px-4 py-3 flex flex-col gap-1">
             <p className="text-[10px] uppercase tracking-wider text-text-secondary font-semibold">Proyección anual</p>
-            <p className={`text-base font-bold tabular-nums ${projectedAnnual >= 0 ? 'text-accent-green' : 'text-accent-red'}`}>{fmtARS(projectedAnnual)}</p>
+            <p className={`text-base font-bold tabular-nums ${projectedAnnual >= 0 ? 'text-accent-green' : 'text-accent-red'}`}>{fmt(projectedAnnual)}</p>
             <p className="text-[11px] text-text-secondary">Al ritmo promedio actual</p>
           </div>
         </div>
@@ -580,7 +585,7 @@ export const SavingsView: React.FC<SavingsViewProps> = ({
                   <p className={`text-sm font-bold tabular-nums ${
                     tx.subtype === 'transfer_to_savings' ? 'text-accent-green' : 'text-yellow-600'
                   }`}>
-                    {tx.subtype === 'transfer_to_savings' ? '+' : '-'}${formatARS(tx.amount)}
+                    {tx.subtype === 'transfer_to_savings' ? '+' : '-'}{fmt(tx.amount)}
                   </p>
                   {tx.amount_usd && (
                     <p className="text-[10px] text-text-secondary tabular-nums">

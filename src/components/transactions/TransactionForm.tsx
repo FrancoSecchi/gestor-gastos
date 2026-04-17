@@ -6,6 +6,7 @@ import { DatePicker } from '../ui/DatePicker';
 import { Transaction, NewTransaction, TransactionType, DollarRate, getCategoryColor, RecurrenceFrequency, RECURRENCE_LABELS, RecurringPayment, SavingsGoal } from '../../types';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useCurrencyFormat } from '../../contexts/CurrencyContext';
 import { formatARS } from '../../lib/export';
 import { HousingContract, getAmountForDate } from '../../lib/housingContract';
 
@@ -61,6 +62,7 @@ export const TransactionForm = React.memo((props: TransactionFormProps) => {
     onSave,
     onClose,
   } = props;
+  const { fmt } = useCurrencyFormat();
   const [form, setForm] = useState<NewTransaction>(defaultForm);
   const [loading, setLoading] = useState(false);
   const [addingCategory, setAddingCategory] = useState(false);
@@ -521,7 +523,7 @@ export const TransactionForm = React.memo((props: TransactionFormProps) => {
                 />
                 {form.amount > 0 && (
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-text-secondary">
-                    ${formatARS(form.amount)}
+                    {fmt(form.amount)}
                   </span>
                 )}
               </div>
@@ -533,7 +535,7 @@ export const TransactionForm = React.memo((props: TransactionFormProps) => {
               return (
                 <div className="flex items-center justify-between gap-3 px-3 py-2 bg-accent-blue/8 border border-accent-blue/20 rounded-xl animate-fade-in">
                   <span className="text-xs text-text-secondary">
-                    Alquiler este mes: <span className="font-semibold text-text-primary">${formatARS(suggested)}</span>
+                    Alquiler este mes: <span className="font-semibold text-text-primary">{fmt(suggested)}</span>
                   </span>
                   <button
                     type="button"
@@ -633,7 +635,7 @@ export const TransactionForm = React.memo((props: TransactionFormProps) => {
                       <option value="">Sin meta</option>
                       {props.savingsGoals.map(goal => (
                         <option key={goal.id} value={goal.id}>
-                          {goal.name} · {goal.currency === 'USD' ? `U$S ${goal.targetAmount}` : `$${formatARS(goal.targetAmount)}`}
+                          {goal.name} · {goal.currency === 'USD' ? `U$S ${goal.targetAmount}` : fmt(goal.targetAmount)}
                         </option>
                       ))}
                     </select>

@@ -5,7 +5,7 @@ import {
   AreaChart, Area,
 } from 'recharts';
 import { Transaction, CategorySummary, getCategoryColor } from '../../types';
-import { formatARS } from '../../lib/export';
+import { useCurrencyFormat } from '../../contexts/CurrencyContext';
 import { format, parseISO, startOfMonth } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -14,66 +14,6 @@ interface ExpenseChartProps {
   byCategory: CategorySummary[];
 }
 
-// Custom tooltip for Pie
-const CustomTooltipPie = ({ active, payload }: any) => {
-  if (active && payload && payload.length) {
-    const pct = payload[0].payload.percent
-      ? (payload[0].payload.percent * 100).toFixed(1)
-      : null;
-    return (
-      <div className="bg-bg-secondary border border-border-color rounded-xl p-3 text-sm shadow-xl shadow-black/40">
-        <div className="flex items-center gap-2 mb-1">
-          <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: payload[0].payload.fill }} />
-          <p className="font-semibold text-text-primary">{payload[0].name}</p>
-        </div>
-        <p className="text-accent-green font-bold tabular-nums">${formatARS(payload[0].value)}</p>
-        {pct && <p className="text-text-secondary text-xs mt-0.5">{pct}% del total</p>}
-      </div>
-    );
-  }
-  return null;
-};
-
-// Custom tooltip for Bar
-const CustomTooltipBar = ({ active, payload, label }: any) => {
-  if (active && payload && payload.length) {
-    return (
-      <div className="bg-bg-secondary border border-border-color rounded-xl p-3 text-sm shadow-xl shadow-black/40">
-        <p className="font-semibold text-text-primary mb-2 capitalize">{label}</p>
-        {payload.map((p: any) => (
-          <div key={p.name} className="flex items-center gap-2 mb-1">
-            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: p.color }} />
-            <span className="text-text-secondary">{p.name}:</span>
-            <span className="font-semibold tabular-nums" style={{ color: p.color }}>
-              ${formatARS(p.value)}
-            </span>
-          </div>
-        ))}
-      </div>
-    );
-  }
-  return null;
-};
-
-// Custom tooltip for Area
-const CustomTooltipArea = ({ active, payload, label }: any) => {
-  if (active && payload && payload.length) {
-    const value = payload[0]?.value ?? 0;
-    return (
-      <div className="bg-bg-secondary border border-border-color rounded-xl p-3 text-sm shadow-xl shadow-black/40">
-        <p className="font-semibold text-text-primary mb-1 capitalize">{label}</p>
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-accent-blue" />
-          <span className="text-text-secondary">Balance:</span>
-          <span className={`font-bold tabular-nums ${value >= 0 ? 'text-accent-green' : 'text-accent-red'}`}>
-            {value >= 0 ? '+' : ''}${formatARS(value)}
-          </span>
-        </div>
-      </div>
-    );
-  }
-  return null;
-};
 
 // Custom label for Pie
 const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, name }: {
@@ -103,8 +43,67 @@ const TABS: { id: Tab; label: string }[] = [
 
 export const ExpenseChart = React.memo((props: ExpenseChartProps) => {
   const { transactions, byCategory } = props;
+  const { fmt } = useCurrencyFormat();
   const [activeTab, setActiveTab] = useState<Tab>('pie');
   const [hoveredCategory, setHoveredCategory] = useState<string | null>(null);
+
+  const CustomTooltipPie = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      const pct = payload[0].payload.percent
+        ? (payload[0].payload.percent * 100).toFixed(1)
+        : null;
+      return (
+        <div className="bg-bg-secondary border border-border-color rounded-xl p-3 text-sm shadow-xl shadow-black/40">
+          <div className="flex items-center gap-2 mb-1">
+            <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: payload[0].payload.fill }} />
+            <p className="font-semibold text-text-primary">{payload[0].name}</p>
+          </div>
+          <p className="text-accent-green font-bold tabular-nums">{fmt(payload[0].value)}</p>
+          {pct && <p className="text-text-secondary text-xs mt-0.5">{pct}% del total</p>}
+        </div>
+      );
+    }
+    return null;
+  };
+
+  const CustomTooltipBar = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-bg-secondary border border-border-color rounded-xl p-3 text-sm shadow-xl shadow-black/40">
+          <p className="font-semibold text-text-primary mb-2 capitalize">{label}</p>
+          {payload.map((p: any) => (
+            <div key={p.name} className="flex items-center gap-2 mb-1">
+              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: p.color }} />
+              <span className="text-text-secondary">{p.name}:</span>
+              <span className="font-semibold tabular-nums" style={{ color: p.color }}>
+                {fmt(p.value)}
+              </span>
+            </div>
+          ))}
+        </div>
+      );
+    }
+    return null;
+  };
+
+  const CustomTooltipArea = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      const value = payload[0]?.value ?? 0;
+      return (
+        <div className="bg-bg-secondary border border-border-color rounded-xl p-3 text-sm shadow-xl shadow-black/40">
+          <p className="font-semibold text-text-primary mb-1 capitalize">{label}</p>
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-accent-blue" />
+            <span className="text-text-secondary">Balance:</span>
+            <span className={`font-bold tabular-nums ${value >= 0 ? 'text-accent-green' : 'text-accent-red'}`}>
+              {value >= 0 ? '+' : ''}{fmt(value)}
+            </span>
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
 
   // Pie chart data
   const pieData = byCategory.slice(0, 8).map(cat => ({
@@ -220,7 +219,7 @@ export const ExpenseChart = React.memo((props: ExpenseChartProps) => {
                     <span className="text-xs text-text-secondary truncate flex-1">{item.name}</span>
                     <div className="text-right flex-shrink-0">
                       <span className="text-xs text-text-primary font-semibold tabular-nums block">
-                        ${formatARS(item.value)}
+                        {fmt(item.value)}
                       </span>
                       <span className="text-xs text-text-secondary tabular-nums">{pct}%</span>
                     </div>
@@ -249,7 +248,7 @@ export const ExpenseChart = React.memo((props: ExpenseChartProps) => {
               </defs>
               <CartesianGrid {...gridStyle} />
               <XAxis dataKey="month" tick={axisStyle} />
-              <YAxis tick={axisStyle} tickFormatter={v => `$${(v / 1000).toFixed(0)}k`} width={40} />
+              <YAxis tick={axisStyle} tickFormatter={v => fmt(v / 1000) + 'k'} width={40} />
               <Tooltip content={CustomTooltipBar} cursor={{ fill: 'rgba(59,130,246,0.05)' }} />
               <Legend wrapperStyle={{ fontSize: '11px', color: '#94a3b8', paddingTop: '4px' }} />
               <Bar dataKey="Ingresos" fill="url(#barGreen)" radius={[3, 3, 0, 0]} isAnimationActive={false} />
@@ -272,7 +271,7 @@ export const ExpenseChart = React.memo((props: ExpenseChartProps) => {
               </defs>
               <CartesianGrid {...gridStyle} />
               <XAxis dataKey="month" tick={axisStyle} />
-              <YAxis tick={axisStyle} tickFormatter={v => `$${(v / 1000).toFixed(0)}k`} width={40} />
+              <YAxis tick={axisStyle} tickFormatter={v => fmt(v / 1000) + 'k'} width={40} />
               <Tooltip content={CustomTooltipArea} cursor={{ stroke: '#3b82f6', strokeWidth: 1, strokeDasharray: '4 4' }} />
               <Area
                 type="monotone"

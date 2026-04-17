@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Home, Gamepad2, PiggyBank, ChevronDown, ChevronUp } from 'lucide-react';
 import { Transaction, Rule502030Percentages, SavingsGoal } from '../../types';
-import { formatARS } from '../../lib/export';
+import { useCurrencyFormat } from '../../contexts/CurrencyContext';
 import { calculateRule502030, DEFAULT_PERCENTAGES } from '../../lib/budgetRule';
 import { Rule502030Mapping } from '../../lib/budgetRuleMapping';
 import { InfoTooltip } from '../ui/InfoTooltip';
@@ -50,6 +50,7 @@ export const BudgetRuleWidget: React.FC<BudgetRuleWidgetProps> = ({
   savingsGoals = [],
   allTransactions = [],
 }) => {
+  const { fmt } = useCurrencyFormat();
   const [mounted, setMounted] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
@@ -100,7 +101,7 @@ export const BudgetRuleWidget: React.FC<BudgetRuleWidgetProps> = ({
           <InfoTooltip title="Regla 50/30/20" content={TOOLTIP_CONTENT} />
         </div>
         <span className="text-xs text-text-secondary tabular-nums">
-          ${formatARS(totalIncome)} ingreso
+          {fmt(totalIncome)} ingreso
         </span>
       </div>
 
@@ -123,9 +124,9 @@ export const BudgetRuleWidget: React.FC<BudgetRuleWidgetProps> = ({
               </div>
               <div className="text-right">
                 <p className={`text-sm font-semibold tabular-nums ${isOver ? 'text-accent-red' : 'text-text-primary'}`}>
-                  ${formatARS(item.spent)}
+                  {fmt(item.spent)}
                 </p>
-                <p className="text-xs text-text-secondary tabular-nums">de ${formatARS(item.budget)}</p>
+                <p className="text-xs text-text-secondary tabular-nums">de {fmt(item.budget)}</p>
               </div>
             </div>
 
@@ -143,7 +144,7 @@ export const BudgetRuleWidget: React.FC<BudgetRuleWidgetProps> = ({
 
             {/* Status */}
             <p className={`text-xs ${isOver ? 'text-accent-red' : 'text-text-secondary'}`}>
-              {isOver ? `Excedido por $${formatARS(diff)}` : `Disponible $${formatARS(diff)}`}
+              {isOver ? `Excedido por ${fmt(diff)}` : `Disponible ${fmt(diff)}`}
             </p>
 
             {/* Categories — collapsed by default */}

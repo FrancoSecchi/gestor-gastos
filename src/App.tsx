@@ -5,6 +5,7 @@ import { SummaryCards } from './components/dashboard/SummaryCards';
 import { ExpenseChart } from './components/dashboard/ExpenseChart';
 import { BudgetTabsWidget } from './components/dashboard/BudgetTabsWidget';
 import { DollarRate } from './components/dashboard/DollarRate';
+import { ExchangeRateCard } from './components/dashboard/ExchangeRateCard';
 import { RecurringPaymentsWidget } from './components/dashboard/RecurringPaymentsWidget';
 import { InsightsWidget } from './components/dashboard/InsightsWidget';
 import { RecentTransactions } from './components/dashboard/RecentTransactions';
@@ -29,7 +30,9 @@ import { useSavings } from './hooks/useSavings';
 import { useSavingsGoals } from './hooks/useSavingsGoals';
 import { deleteReceiptFile } from './lib/receiptUtils';
 import { useDollarRate } from './hooks/useDollarRate';
+import { useExchangeRates } from './hooks/useExchangeRates';
 import { useFilters } from './hooks/useFilters';
+import { CurrencyProvider, useCurrencyFormat } from './contexts/CurrencyContext';
 import { Transaction, NewTransaction, RecurringPayment, RecurrenceFrequency, RECURRENCE_LABELS } from './types';
 import { exportToExcel, exportForClaude } from './lib/export';
 import { getReadableError, logError, getTransactions, getAllTransactions, createRecurringPayment, getRule502030Enabled, setRule502030Enabled } from './lib/db';
@@ -185,6 +188,8 @@ function AppInner() {
     dateRange.end
   );
   const { rates, loading: dollarLoading, error: dollarError, lastUpdate, refresh: refreshDollar } = useDollarRate();
+  const { currency: selectedCurrency, setCurrency } = useCurrencyFormat();
+  const { rates: exchangeRates, loading: exchangeLoading, error: exchangeError, lastUpdate: exchangeLastUpdate, refresh: refreshExchange } = useExchangeRates(selectedCurrency.code);
   const {
     expenseCategories,
     incomeCategories,
@@ -577,6 +582,7 @@ function AppInner() {
         activeView={activeView}
         onNavigate={setActiveView}
         transactionCount={transactions.length}
+        isARS={selectedCurrency.code === 'ARS'}
       />
 
       <div className="flex-1 flex flex-col min-w-0">
@@ -589,6 +595,7 @@ function AppInner() {
           lastUpdate={lastUpdate}
           onRefreshDollar={refreshDollar}
           summary={summary}
+          selectedCurrency={selectedCurrency}
         />
 
         <main className="flex-1 overflow-y-auto p-5">
@@ -663,13 +670,24 @@ function AppInner() {
                       onToggleRecurring={toggleRecurring}
                     />
                   )}
-                  <DollarRate
-                    rates={rates}
-                    loading={dollarLoading}
-                    error={dollarError}
-                    lastUpdate={lastUpdate}
-                    onRefresh={refreshDollar}
-                  />
+                  {selectedCurrency.code === 'ARS' ? (
+                    <DollarRate
+                      rates={rates}
+                      loading={dollarLoading}
+                      error={dollarError}
+                      lastUpdate={lastUpdate}
+                      onRefresh={refreshDollar}
+                    />
+                  ) : (
+                    <ExchangeRateCard
+                      currency={selectedCurrency}
+                      rates={exchangeRates}
+                      loading={exchangeLoading}
+                      error={exchangeError}
+                      lastUpdate={exchangeLastUpdate}
+                      onRefresh={refreshExchange}
+                    />
+                  )}
                 </div>
               </div>
 
@@ -836,7 +854,11 @@ function AppInner() {
           {activeView === 'settings' && (
             <div className="animate-fade-in">
               <Suspense fallback={<div className="flex items-center justify-center h-48"><p className="text-text-secondary">Cargando ajustes...</p></div>}>
-                <Settings onClearAllData={handleClearAllData} />
+                <Settings
+                  onClearAllData={handleClearAllData}
+                  selectedCurrency={selectedCurrency}
+                  onCurrencyChange={setCurrency}
+                />
               </Suspense>
             </div>
           )}
@@ -870,9 +892,11 @@ function AppInner() {
 export default function App() {
   return (
     <ToastProvider>
-      <CategoriesProvider>
-        <AppInner />
-      </CategoriesProvider>
+      <CurrencyProvider>
+        <CategoriesProvider>
+          <AppInner />
+        </CategoriesProvider>
+      </CurrencyProvider>
     </ToastProvider>
   );
 }

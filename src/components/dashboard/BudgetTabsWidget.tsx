@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Home, Gamepad2, PiggyBank, ChevronDown, ChevronUp, Target, ArrowRight } from 'lucide-react';
 import { Transaction, Rule502030Percentages, SavingsGoal } from '../../types';
-import { formatARS } from '../../lib/export';
+import { useCurrencyFormat } from '../../contexts/CurrencyContext';
 import { calculateRule502030, DEFAULT_PERCENTAGES } from '../../lib/budgetRule';
 import { Rule502030Mapping } from '../../lib/budgetRuleMapping';
 import { InfoTooltip } from '../ui/InfoTooltip';
@@ -45,10 +45,10 @@ const TOOLTIP_CONTENT = (
   </div>
 );
 
-function formatAmount(amount: number, currency: 'ARS' | 'USD'): string {
+function formatGoalAmount(amount: number, currency: 'ARS' | 'USD', fmtLocal: (n: number) => string): string {
   return currency === 'USD'
     ? `U$S ${amount.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
-    : `$${formatARS(amount)}`;
+    : fmtLocal(amount);
 }
 
 function getGoalProgress(goal: SavingsGoal, allTx: Transaction[]) {
@@ -73,6 +73,7 @@ export const BudgetTabsWidget: React.FC<BudgetTabsWidgetProps> = ({
   showBudgetTab = true,
   allTransactions,
 }) => {
+  const { fmt } = useCurrencyFormat();
   const [tab, setTab] = useState<Tab>(showBudgetTab ? 'budget' : 'goals');
   const [mounted, setMounted] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
@@ -167,7 +168,7 @@ export const BudgetTabsWidget: React.FC<BudgetTabsWidgetProps> = ({
                   <InfoTooltip title="Regla 50/30/20" content={TOOLTIP_CONTENT} />
                 </div>
                 <span className="text-xs text-text-secondary tabular-nums">
-                  ${formatARS(totalIncome)} ingreso
+                  {fmt(totalIncome)} ingreso
                 </span>
               </div>
 
@@ -188,9 +189,9 @@ export const BudgetTabsWidget: React.FC<BudgetTabsWidgetProps> = ({
                       </div>
                       <div className="text-right">
                         <p className={`text-sm font-semibold tabular-nums ${isOver ? 'text-accent-red' : 'text-text-primary'}`}>
-                          ${formatARS(item.spent)}
+                          {fmt(item.spent)}
                         </p>
-                        <p className="text-xs text-text-secondary tabular-nums">de ${formatARS(item.budget)}</p>
+                        <p className="text-xs text-text-secondary tabular-nums">de {fmt(item.budget)}</p>
                       </div>
                     </div>
 
@@ -206,7 +207,7 @@ export const BudgetTabsWidget: React.FC<BudgetTabsWidgetProps> = ({
                     </div>
 
                     <p className={`text-xs ${isOver ? 'text-accent-red' : 'text-text-secondary'}`}>
-                      {isOver ? `Excedido por $${formatARS(diff)}` : `Disponible $${formatARS(diff)}`}
+                      {isOver ? `Excedido por ${fmt(diff)}` : `Disponible ${fmt(diff)}`}
                     </p>
 
                     {item.categories.length > 0 && (
@@ -309,7 +310,7 @@ export const BudgetTabsWidget: React.FC<BudgetTabsWidgetProps> = ({
 
                     <div className="flex items-center justify-between">
                       <p className="text-xs text-text-secondary tabular-nums">
-                        {formatAmount(saved, goal.currency)} de {formatAmount(goal.targetAmount, goal.currency)}
+                        {formatGoalAmount(saved, goal.currency, fmt)} de {formatGoalAmount(goal.targetAmount, goal.currency, fmt)}
                       </p>
                       {isCompleted && (
                         <p className="text-xs text-accent-green font-medium">¡Completada!</p>

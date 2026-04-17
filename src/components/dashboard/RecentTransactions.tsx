@@ -1,6 +1,6 @@
 import React from 'react';
 import { Transaction } from '../../types';
-import { formatARS } from '../../lib/export';
+import { useCurrencyFormat } from '../../contexts/CurrencyContext';
 import { format, parseISO, isToday, isYesterday } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -22,6 +22,7 @@ export const RecentTransactions: React.FC<RecentTransactionsProps> = ({
   categoryIcons,
   onViewAll,
 }) => {
+  const { fmt } = useCurrencyFormat();
   const recent = transactions
     .slice()
     .sort((a, b) => b.date.localeCompare(a.date) || b.created_at.localeCompare(a.created_at))
@@ -67,7 +68,7 @@ export const RecentTransactions: React.FC<RecentTransactionsProps> = ({
                   <p className={`text-xs font-semibold tabular-nums ${
                     isIncome ? 'text-accent-green' : isTransfer ? 'text-accent-blue' : 'text-text-primary'
                   }`}>
-                    {isIncome ? '+' : '-'}${formatARS(tx.amount)}
+                    {isIncome ? '+' : '-'}{fmt(tx.amount)}
                   </p>
                   <p className="text-[10px] text-text-secondary">{formatDate(tx.date)}</p>
                 </div>

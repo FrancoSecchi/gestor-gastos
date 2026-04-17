@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Calendar, RefreshCw, ArrowRightLeft, Paperclip } from 'lucide-react';
-import { formatARS } from '../../lib/export';
+import { useCurrencyFormat } from '../../contexts/CurrencyContext';
 import { DateFilter, FilterState, DateRange, QuickFilter } from '../../types';
 import { DatePicker } from '../ui/DatePicker';
 
@@ -78,6 +78,7 @@ export const TransactionFilters = React.memo((props: TransactionFiltersProps) =>
     monthProgress,
   } = props;
 
+  const { fmt } = useCurrencyFormat();
   const categoryOptions = useMemo(() => {
     if (filters.type === 'expense') return expenseCategories;
     if (filters.type === 'income') return incomeCategories;
@@ -167,8 +168,8 @@ export const TransactionFilters = React.memo((props: TransactionFiltersProps) =>
             <span className="text-xs text-text-secondary whitespace-nowrap tabular-nums flex-shrink-0">
               Día {monthProgress.day} de {monthProgress.totalDays}
               {' · '}
-              <span className="text-text-primary font-medium">${formatARS(monthProgress.spent)}</span>
-              {' de $'}{formatARS(monthProgress.income)}
+              <span className="text-text-primary font-medium">{fmt(monthProgress.spent)}</span>
+              {' de '}{fmt(monthProgress.income)}
             </span>
           </div>
         </>

@@ -9,7 +9,7 @@ import { BudgetRuleWidget } from '../dashboard/BudgetRuleWidget';
 import { SavingsGoal, Transaction, Rule502030Group, Rule502030Percentages } from '../../types';
 import { Rule502030Mapping, assignmentToMapping, buildAssignmentForCategories } from '../../lib/budgetRuleMapping';
 import { DEFAULT_PERCENTAGES } from '../../lib/budgetRule';
-import { formatARS } from '../../lib/export';
+import { useCurrencyFormat } from '../../contexts/CurrencyContext';
 import { logError, getReadableError } from '../../lib/db';
 import { format, parseISO, differenceInMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -68,10 +68,10 @@ function getGoalProgress(goal: SavingsGoal, allTx: Transaction[]) {
   return { saved, remaining, percentage, monthsLeft, monthlyNeeded, isCompleted, isPastDue };
 }
 
-function formatGoalAmount(amount: number, currency: 'ARS' | 'USD'): string {
+function formatGoalAmount(amount: number, currency: 'ARS' | 'USD', fmtLocal: (n: number) => string): string {
   return currency === 'USD'
     ? `U$S ${amount.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
-    : `$${formatARS(amount)}`;
+    : fmtLocal(amount);
 }
 
 export const BudgetRuleView = React.memo((props: BudgetRuleViewProps) => {
@@ -97,6 +97,7 @@ export const BudgetRuleView = React.memo((props: BudgetRuleViewProps) => {
     onReset,
   } = props;
 
+  const { fmt } = useCurrencyFormat();
   const [assign, setAssign] = useState<Record<string, Rule502030Group>>({});
   const [localPct, setLocalPct] = useState<Rule502030Percentages>(percentages);
   const [saving, setSaving] = useState(false);
@@ -452,7 +453,7 @@ export const BudgetRuleView = React.memo((props: BudgetRuleViewProps) => {
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
                       <span className="text-xs text-text-secondary tabular-nums">
-                        {formatGoalAmount(p.saved, goal.currency)}
+                        {formatGoalAmount(p.saved, goal.currency, fmt)}
                       </span>
                       <span className="text-xs font-semibold text-text-primary tabular-nums">
                         {p.percentage.toFixed(0)}%
@@ -468,7 +469,7 @@ export const BudgetRuleView = React.memo((props: BudgetRuleViewProps) => {
                       />
                     </div>
                     <p className="text-xs text-text-secondary mt-1 tabular-nums">
-                      de {formatGoalAmount(goal.targetAmount, goal.currency)}
+                      de {formatGoalAmount(goal.targetAmount, goal.currency, fmt)}
                     </p>
                   </div>
 
@@ -487,7 +488,7 @@ export const BudgetRuleView = React.memo((props: BudgetRuleViewProps) => {
                         <p className="text-xs text-text-secondary">
                           Necesitás{' '}
                           <span className="font-semibold text-text-primary">
-                            {formatGoalAmount(Math.ceil(p.monthlyNeeded), goal.currency)}/mes
+                            {formatGoalAmount(Math.ceil(p.monthlyNeeded), goal.currency, fmt)}/mes
                           </span>
                           {' '}para llegar
                         </p>

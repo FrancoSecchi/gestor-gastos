@@ -135,3 +135,10 @@ export function formatUSD(amount: number): string {
     maximumFractionDigits: 2,
   }).format(amount);
 }
+
+export function formatCurrency(amount: number, locale: string): string {
+  return new Intl.NumberFormat(locale, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(amount);
+}

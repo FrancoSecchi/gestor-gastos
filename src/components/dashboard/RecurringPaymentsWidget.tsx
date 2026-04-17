@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Trash2, ToggleLeft, ToggleRight, ChevronDown, ChevronUp } from 'lucide-react';
 import { RecurringPayment, Transaction, RECURRENCE_LABELS } from '../../types';
-import { formatARS } from '../../lib/export';
+import { useCurrencyFormat } from '../../contexts/CurrencyContext';
 import { getCurrentPeriodRange } from '../../hooks/useRecurringPayments';
 
 interface RecurringPaymentsWidgetProps {
@@ -29,6 +29,7 @@ export const RecurringPaymentsWidget = React.memo((props: RecurringPaymentsWidge
     onDeleteRecurring,
     onToggleRecurring,
   } = props;
+  const { fmt } = useCurrencyFormat();
   const [collapsed, setCollapsed] = useState(false);
   const [showInactive, setShowInactive] = useState(false);
 
@@ -97,7 +98,7 @@ export const RecurringPaymentsWidget = React.memo((props: RecurringPaymentsWidge
                       )}
                     </p>
                     <p className="text-[10px] text-text-secondary">
-                      {RECURRENCE_LABELS[rp.frequency]} · ${formatARS(rp.amount)}
+                      {RECURRENCE_LABELS[rp.frequency]} · {fmt(rp.amount)}
                     </p>
                   </div>
 

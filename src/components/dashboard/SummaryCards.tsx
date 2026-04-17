@@ -1,7 +1,7 @@
 import React from 'react';
 import { TrendingUp, TrendingDown, Scale, PiggyBank, Wallet } from 'lucide-react';
 import { Summary, DateRange } from '../../types';
-import { formatARS } from '../../lib/export';
+import { useCurrencyFormat } from '../../contexts/CurrencyContext';
 import { InfoTooltip } from '../ui/InfoTooltip';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -34,6 +34,7 @@ export const SummaryCards = React.memo((props: SummaryCardsProps) => {
     totalSavings,
     projectedBalance,
   } = props;
+  const { fmt } = useCurrencyFormat();
 
   const balance = summary?.balance ?? 0;
   const balancePositive = balance >= 0;
@@ -80,7 +81,7 @@ export const SummaryCards = React.memo((props: SummaryCardsProps) => {
             </div>
           </div>
           <p className="text-base font-bold text-accent-green tabular-nums leading-tight">
-            +${formatARS(summary?.total_income ?? 0)}
+            +{fmt(summary?.total_income ?? 0)}
           </p>
         </div>
 
@@ -97,7 +98,7 @@ export const SummaryCards = React.memo((props: SummaryCardsProps) => {
             </div>
           </div>
           <p className="text-base font-bold text-accent-red tabular-nums leading-tight">
-            -${formatARS(summary?.total_expenses ?? 0)}
+            -{fmt(summary?.total_expenses ?? 0)}
           </p>
         </div>
 
@@ -116,16 +117,16 @@ export const SummaryCards = React.memo((props: SummaryCardsProps) => {
             </div>
           </div>
           <p className={`text-base font-bold tabular-nums leading-tight ${balancePositive ? 'text-accent-blue' : 'text-accent-orange'}`}>
-            {balancePositive ? '+' : '-'}${formatARS(Math.abs(balance))}
+            {balancePositive ? '+' : '-'}{fmt(Math.abs(balance))}
           </p>
           {pendingRecurringAmount > 0 && (
             <p className="text-[10px] text-accent-orange mt-0.5 tabular-nums leading-tight">
-              Quedan ${formatARS(pendingRecurringAmount)} en recurrentes
+              Quedan {fmt(pendingRecurringAmount)} en recurrentes
             </p>
           )}
           {projectedBalance !== null && projectedBalance !== undefined && (
             <p className={`text-[10px] mt-0.5 tabular-nums leading-tight ${projectedBalance >= 0 ? 'text-text-secondary' : 'text-accent-orange'}`}>
-              Proyectado: {projectedBalance >= 0 ? '+' : '-'}${formatARS(Math.abs(projectedBalance))}
+              Proyectado: {projectedBalance >= 0 ? '+' : '-'}{fmt(Math.abs(projectedBalance))}
             </p>
           )}
         </div>
@@ -174,7 +175,7 @@ export const SummaryCards = React.memo((props: SummaryCardsProps) => {
               </div>
             </div>
             <p className="text-base font-bold text-accent-green tabular-nums leading-tight">
-              ${formatARS(totalSavings)}
+              {fmt(totalSavings)}
             </p>
             <p className="text-[10px] text-text-secondary mt-0.5">Acumulado total</p>
           </div>

@@ -1,7 +1,8 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { RefreshCw, AlertCircle, TrendingUp, TrendingDown, DollarSign } from 'lucide-react';
-import { DollarRate, Summary } from '../../types';
+import { DollarRate, Summary, CurrencyInfo } from '../../types';
 import { formatARS } from '../../lib/export';
+import { useCurrencyFormat } from '../../contexts/CurrencyContext';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { InfoTooltip } from '../ui/InfoTooltip';
@@ -15,6 +16,7 @@ interface HeaderProps {
   lastUpdate: Date | null;
   onRefreshDollar: () => void;
   summary?: Summary | null;
+  selectedCurrency: CurrencyInfo;
 }
 
 const DOLLAR_NAMES: Record<string, string> = {
@@ -39,10 +41,13 @@ export const Header: React.FC<HeaderProps> = ({
   lastUpdate,
   onRefreshDollar,
   summary,
+  selectedCurrency,
 }) => {
-  const keyRates = dollarRates.filter(r =>
-    ['blue', 'oficial', 'bolsa'].includes(r.nombre.toLowerCase())
-  );
+  const { fmt } = useCurrencyFormat();
+  const showDollarRates = selectedCurrency.code === 'ARS';
+  const keyRates = showDollarRates
+    ? dollarRates.filter(r => ['blue', 'oficial', 'bolsa'].includes(r.nombre.toLowerCase()))
+    : [];
 
   // Simulated trend: if rate venta > compra by more than 3% consider "up"
   const getRateTrend = (rate: DollarRate) => {
@@ -87,7 +92,7 @@ export const Header: React.FC<HeaderProps> = ({
               ? <TrendingUp size={11} />
               : <TrendingDown size={11} />
             }
-            <span>{balancePositive ? '+' : ''}{formatARS(summary.balance)} ARS</span>
+            <span>{balancePositive ? '+' : ''}{fmt(summary.balance)}</span>
           </div>
         )}
       </div>
@@ -127,26 +132,28 @@ export const Header: React.FC<HeaderProps> = ({
         )}
 
         {/* Separator */}
-        {keyRates.length > 0 && (
+        {showDollarRates && keyRates.length > 0 && (
           <div className="w-px h-5 bg-border-color" />
         )}
 
-        {/* Last update + refresh */}
-        <div className="flex items-center gap-2">
-          {timeAgoStr && (
-            <span className="text-xs text-text-secondary" title={lastUpdate?.toLocaleString()}>
-              Actualizado {timeAgoStr}
-            </span>
-          )}
-          <button
-            onClick={onRefreshDollar}
-            disabled={dollarLoading}
-            className="p-1.5 rounded-md text-text-secondary hover:text-text-primary hover:bg-bg-card border border-transparent hover:border-border-color transition-all duration-200 disabled:opacity-50"
-            title="Actualizar cotizaciones"
-          >
-            <RefreshCw size={13} className={dollarLoading ? 'animate-spin' : ''} />
-          </button>
-        </div>
+        {/* Last update + refresh — only shown for ARS */}
+        {showDollarRates && (
+          <div className="flex items-center gap-2">
+            {timeAgoStr && (
+              <span className="text-xs text-text-secondary" title={lastUpdate?.toLocaleString()}>
+                Actualizado {timeAgoStr}
+              </span>
+            )}
+            <button
+              onClick={onRefreshDollar}
+              disabled={dollarLoading}
+              className="p-1.5 rounded-md text-text-secondary hover:text-text-primary hover:bg-bg-card border border-transparent hover:border-border-color transition-all duration-200 disabled:opacity-50"
+              title="Actualizar cotizaciones"
+            >
+              <RefreshCw size={13} className={dollarLoading ? 'animate-spin' : ''} />
+            </button>
+          </div>
+        )}
       </div>
     </header>
   );

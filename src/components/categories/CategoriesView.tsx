@@ -4,7 +4,7 @@ import {
 } from 'recharts';
 import { CategoryEditor } from '../settings/CategoryEditor';
 import { Transaction, getCategoryColor } from '../../types';
-import { formatARS } from '../../lib/export';
+import { useCurrencyFormat } from '../../contexts/CurrencyContext';
 
 interface CategoriesViewProps {
   transactions: Transaction[];
@@ -22,18 +22,6 @@ interface CategoriesViewProps {
   onRenameIncome: (oldName: string, newName: string) => Promise<void>;
 }
 
-const CustomTooltip = ({ active, payload }: any) => {
-  if (!active || !payload?.length) return null;
-  const d = payload[0].payload;
-  return (
-    <div className="bg-bg-secondary border border-border-color rounded-xl p-3 text-sm shadow-xl shadow-black/40">
-      <p className="font-semibold text-text-primary mb-1">{d.category}</p>
-      <p className="text-accent-red font-bold tabular-nums">${formatARS(payload[0].value)}</p>
-      <p className="text-text-secondary text-xs mt-0.5">{d.count} transacciones</p>
-    </div>
-  );
-};
-
 export const CategoriesView: React.FC<CategoriesViewProps> = ({
   transactions,
   expenseCategories,
@@ -49,6 +37,19 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
   onRenameExpense,
   onRenameIncome,
 }) => {
+  const { fmt } = useCurrencyFormat();
+
+  const CustomTooltip = ({ active, payload }: any) => {
+    if (!active || !payload?.length) return null;
+    const d = payload[0].payload;
+    return (
+      <div className="bg-bg-secondary border border-border-color rounded-xl p-3 text-sm shadow-xl shadow-black/40">
+        <p className="font-semibold text-text-primary mb-1">{d.category}</p>
+        <p className="text-accent-red font-bold tabular-nums">{fmt(payload[0].value)}</p>
+        <p className="text-text-secondary text-xs mt-0.5">{d.count} transacciones</p>
+      </div>
+    );
+  };
   const chartData = useMemo(() => {
     const map: Record<string, { total: number; count: number }> = {};
     for (const tx of transactions) {
@@ -149,7 +150,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
                     <span className="text-base leading-none shrink-0">{item.icon}</span>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-medium text-text-primary truncate">{item.category}</p>
-                      <p className="text-xs text-text-secondary tabular-nums">${formatARS(item.total)}</p>
+                      <p className="text-xs text-text-secondary tabular-nums">{fmt(item.total)}</p>
                     </div>
                     <span
                       className="text-xs font-semibold tabular-nums shrink-0"

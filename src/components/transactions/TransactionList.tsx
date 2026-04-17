@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Edit2, Trash2, Plus, Download, FileJson, PackageOpen, Paperclip, RefreshCw, X } from 'lucide-react';
 import { Transaction, FilterState, getCategoryColor, RecurrenceFrequency, RECURRENCE_LABELS } from '../../types';
-import { formatARS } from '../../lib/export';
+import { useCurrencyFormat } from '../../contexts/CurrencyContext';
 import { ReceiptViewer } from './ReceiptViewer';
 import { format, parseISO, isToday, isYesterday, isThisWeek, isThisMonth } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -63,6 +63,7 @@ export const TransactionList = React.memo((props: TransactionListProps) => {
     onMarkRecurring,
     onUnmarkRecurring,
   } = props;
+  const { fmt } = useCurrencyFormat();
   const [viewingReceipt, setViewingReceipt] = useState<string | null>(null);
   const [markingId, setMarkingId] = useState<string | null>(null);
   const [markingSaving, setMarkingSaving] = useState(false);
@@ -97,9 +98,9 @@ export const TransactionList = React.memo((props: TransactionListProps) => {
           </p>
           {filtered.length > 0 && (
             <div className="flex items-center gap-2 text-xs">
-              <span className="text-accent-green tabular-nums font-medium">+${formatARS(totalIncome)}</span>
+              <span className="text-accent-green tabular-nums font-medium">+{fmt(totalIncome)}</span>
               <span className="text-text-secondary">·</span>
-              <span className="text-accent-red tabular-nums font-medium">-${formatARS(totalExpense)}</span>
+              <span className="text-accent-red tabular-nums font-medium">-{fmt(totalExpense)}</span>
             </div>
           )}
         </div>
@@ -265,7 +266,7 @@ export const TransactionList = React.memo((props: TransactionListProps) => {
                           <span className={`text-sm font-bold tabular-nums ${
                             tx.type === 'income' ? 'text-accent-green' : 'text-accent-red'
                           }`}>
-                            {tx.type === 'income' ? '+' : '-'}${formatARS(tx.amount)}
+                            {tx.type === 'income' ? '+' : '-'}{fmt(tx.amount)}
                           </span>
                           {tx.amount_usd && (
                             <p className="text-xs text-text-secondary tabular-nums">

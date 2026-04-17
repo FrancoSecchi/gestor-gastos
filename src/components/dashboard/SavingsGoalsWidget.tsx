@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Target, ArrowRight } from 'lucide-react';
 import { SavingsGoal, Transaction } from '../../types';
-import { formatARS } from '../../lib/export';
+import { useCurrencyFormat } from '../../contexts/CurrencyContext';
 import { getAllTransactions } from '../../lib/db';
 import { differenceInMonths, parseISO } from 'date-fns';
 
@@ -22,15 +22,16 @@ function getGoalProgress(goal: SavingsGoal, allTx: Transaction[]) {
   return { saved, pct, monthsLeft, isCompleted, isPastDue };
 }
 
-function formatAmount(amount: number, currency: 'ARS' | 'USD'): string {
-  return currency === 'USD'
-    ? `U$S ${amount.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
-    : `$${formatARS(amount)}`;
-}
-
 export const SavingsGoalsWidget: React.FC<SavingsGoalsWidgetProps> = ({ savingsGoals, onNavigate }) => {
+  const { fmt } = useCurrencyFormat();
   const [mounted, setMounted] = useState(false);
   const [allTx, setAllTx] = useState<Transaction[]>([]);
+
+  function formatAmount(amount: number, currency: 'ARS' | 'USD'): string {
+    return currency === 'USD'
+      ? `U$S ${amount.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
+      : fmt(amount);
+  }
 
   useEffect(() => {
     const t = setTimeout(() => setMounted(true), 100);

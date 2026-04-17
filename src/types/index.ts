@@ -128,6 +128,33 @@ export interface DollarCache {
   timestamp: number;
 }
 
+export type CurrencyCode = 'ARS' | 'USD' | 'EUR' | 'MAD';
+
+export interface CurrencyInfo {
+  code: CurrencyCode;
+  name: string;
+  symbol: string;
+  locale: string;
+}
+
+export const SUPPORTED_CURRENCIES: CurrencyInfo[] = [
+  { code: 'ARS', name: 'Peso argentino', symbol: '$', locale: 'es-AR' },
+  { code: 'USD', name: 'Dólar estadounidense', symbol: 'US$', locale: 'en-US' },
+  { code: 'EUR', name: 'Euro', symbol: '€', locale: 'de-DE' },
+  { code: 'MAD', name: 'Dírham marroquí', symbol: 'MAD', locale: 'ar-MA' },
+];
+
+export interface ExchangeRates {
+  base: CurrencyCode;
+  rates: Record<string, number>;
+  timestamp: number;
+}
+
+export interface ExchangeRatesCache {
+  data: ExchangeRates;
+  timestamp: number;
+}
+
 export type DateFilter =
   | 'current_week'
   | 'current_month'

@@ -20,6 +20,7 @@ interface SidebarProps {
   activeView: ActiveView;
   onNavigate: (view: ActiveView) => void;
   transactionCount?: number;
+  isARS?: boolean;
 }
 
 interface NavItem {
@@ -63,7 +64,7 @@ const navGroups: NavGroup[] = [
   },
 ];
 
-export const Sidebar: React.FC<SidebarProps> = ({ activeView, onNavigate, transactionCount = 0 }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ activeView, onNavigate, transactionCount = 0, isARS = true }) => {
   const [collapsed, setCollapsed] = useState(false);
 
   // Which group contains the active view
@@ -200,13 +201,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onNavigate, transa
       {/* Navigation */}
       <nav className={`flex-1 overflow-y-auto ${collapsed ? 'p-2 space-y-1' : 'p-2.5 space-y-0.5'}`}>
         {navGroups.map((group) => {
+          const visibleItems = isARS ? group.items : group.items.filter(i => i.id !== 'housing');
+          if (visibleItems.length === 0) return null;
+
           const isOpen = openGroups[group.id] ?? false;
-          const hasActive = group.items.some(i => i.id === activeView);
+          const hasActive = visibleItems.some(i => i.id === activeView);
 
           if (collapsed) {
             return (
               <div key={group.id} className="flex flex-col items-center gap-0.5 pb-1.5 border-b border-border-color/40 last:border-0">
-                {group.items.map(renderItem)}
+                {visibleItems.map(renderItem)}
               </div>
             );
           }
@@ -230,7 +234,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onNavigate, transa
 
               {isOpen && (
                 <div className="space-y-0.5 mt-0.5 mb-1.5">
-                  {group.items.map(renderItem)}
+                  {visibleItems.map(renderItem)}
                 </div>
               )}
             </div>

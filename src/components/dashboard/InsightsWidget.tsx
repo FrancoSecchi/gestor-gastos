@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Transaction } from '../../types';
-import { formatARS } from '../../lib/export';
+import { useCurrencyFormat } from '../../contexts/CurrencyContext';
 
 interface InsightsWidgetProps {
   currentTransactions: Transaction[];
@@ -25,6 +25,7 @@ export const InsightsWidget: React.FC<InsightsWidgetProps> = ({
   streakMonths,
   projectedBalance,
 }) => {
+  const { fmt } = useCurrencyFormat();
   const insights = useMemo(() => {
     const result: Insight[] = [];
 
@@ -86,7 +87,7 @@ export const InsightsWidget: React.FC<InsightsWidgetProps> = ({
               Tu mayor gasto es{' '}
               <span className="font-semibold text-text-primary">{topCat[0]}</span>
               {' '}con{' '}
-              <span className="font-semibold text-text-primary">${formatARS(topCat[1])}</span>
+              <span className="font-semibold text-text-primary">{fmt(topCat[1])}</span>
             </>
           ),
         });
@@ -118,7 +119,7 @@ export const InsightsWidget: React.FC<InsightsWidgetProps> = ({
           <>
             A este ritmo cerrarías el período con{' '}
             <span className={`font-semibold ${positive ? 'text-accent-green' : 'text-accent-orange'}`}>
-              {positive ? '+' : '-'}${formatARS(Math.abs(projectedBalance))}
+              {positive ? '+' : '-'}{fmt(Math.abs(projectedBalance))}
             </span>
           </>
         ),
@@ -126,7 +127,7 @@ export const InsightsWidget: React.FC<InsightsWidgetProps> = ({
     }
 
     return result.slice(0, 4);
-  }, [currentTransactions, previousTransactions, streakMonths, projectedBalance]);
+  }, [currentTransactions, previousTransactions, streakMonths, projectedBalance, fmt]);
 
   if (insights.length === 0) return null;
 

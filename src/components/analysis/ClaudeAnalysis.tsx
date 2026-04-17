@@ -4,7 +4,7 @@ import { Transaction, Summary } from '../../types';
 import { analyzeWithClaude } from '../../lib/claude';
 import { exportForClaude } from '../../lib/export';
 import { getSetting } from '../../lib/db';
-import { formatARS } from '../../lib/export';
+import { useCurrencyFormat } from '../../contexts/CurrencyContext';
 import { calculateRule502030 } from '../../lib/budgetRule';
 import { Rule502030Mapping } from '../../lib/budgetRuleMapping';
 
@@ -231,6 +231,7 @@ export const ClaudeAnalysis: React.FC<ClaudeAnalysisProps> = ({
   rule502030Mapping,
   onNavigateSettings,
 }) => {
+  const { fmt } = useCurrencyFormat();
   const [analysis, setAnalysis] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -343,11 +344,11 @@ export const ClaudeAnalysis: React.FC<ClaudeAnalysisProps> = ({
             </div>
             <div className="text-center">
               <p className="text-xs text-text-secondary mb-0.5">Ingresos</p>
-              <p className="text-sm font-bold text-accent-green tabular-nums">${formatARS(summary.total_income)}</p>
+              <p className="text-sm font-bold text-accent-green tabular-nums">{fmt(summary.total_income)}</p>
             </div>
             <div className="text-center">
               <p className="text-xs text-text-secondary mb-0.5">Gastos</p>
-              <p className="text-sm font-bold text-accent-red tabular-nums">${formatARS(summary.total_expenses)}</p>
+              <p className="text-sm font-bold text-accent-red tabular-nums">{fmt(summary.total_expenses)}</p>
             </div>
             <div className="text-center">
               <p className="text-xs text-text-secondary mb-0.5">Modelo</p>
