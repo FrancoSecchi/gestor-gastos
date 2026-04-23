@@ -140,7 +140,7 @@ export const Settings: React.FC<SettingsProps> = ({
   `;
 
   return (
-    <div className="flex flex-col gap-4 max-w-2xl">
+    <div className="flex flex-col gap-4 w-full">
       <div>
         <h2 className="text-lg font-semibold text-text-primary">Configuración</h2>
         <p className="text-sm text-text-secondary mt-1">Personalizá la aplicación según tus preferencias.</p>

@@ -302,6 +302,7 @@ export const SavingsView: React.FC<SavingsViewProps> = ({
                 placeholder="0"
                 className="w-40 px-2.5 py-1.5 rounded-lg border border-accent-blue/40 bg-bg-secondary text-sm text-text-primary focus:outline-none focus:border-accent-blue tabular-nums"
               />
+              
 
               {/* Preview de conversión */}
               {initialCurrency === 'USD' && initialInput && (
