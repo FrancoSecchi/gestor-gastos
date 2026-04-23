@@ -1,20 +1,22 @@
 # Gastos Personales
 
-App de escritorio para gestionar gastos e ingresos personales con análisis avanzado: regla 50/30/20, cotización del dólar en tiempo real, seguimiento de ahorros, gestión de contratos de vivienda y pagos recurrentes.
+App de escritorio para gestionar gastos e ingresos personales con análisis avanzado: regla de presupuesto personalizable, cotizaciones de divisas en tiempo real, seguimiento de ahorros, gestión de vivienda, pagos recurrentes y análisis con IA.
 
 ---
 
 ## Características
 
-- **Regla 50/30/20**: Clasifica automáticamente gastos en Necesidades, Deseos y Ahorro/Inversión
-- **Cotización del dólar**: Actualización automática cada 30 minutos
-- **Gestión de ahorros**: Seguimiento de metas y depósitos
-- **Contratos de vivienda**: Control de alquiler y vencimientos
-- **Pagos recurrentes**: Registra y controla gastos periódicos
-- **Gestión de categorías**: Categorías predefinidas + personalizadas
+- **Dashboard**: Resumen mensual con widgets colapsables (cotizaciones, metas, pagos recurrentes, transacciones recientes, insights)
+- **Regla de presupuesto**: Clasifica gastos en grupos personalizables (por defecto: Necesidades / Deseos / Ahorro)
+- **Análisis con IA**: Exporta tus datos a Claude para obtener insights financieros personalizados
+- **Cotizaciones**: Dólar (múltiples tipos) y otras divisas con actualización automática
+- **Ahorros**: Metas de ahorro con seguimiento de depósitos
+- **Vivienda**: Control de contrato de alquiler y vencimientos
+- **Pagos recurrentes**: Registra y controla gastos/ingresos periódicos
+- **Categorías**: Predefinidas + personalizadas con íconos configurables
 - **Exportación**: Descarga tus datos en formato Excel
 - **Visor de recibos**: Almacena evidencia de transacciones
-- **Base de datos local**: SQLite - tus datos permanecen en tu dispositivo
+- **Base de datos local**: SQLite — tus datos permanecen en tu dispositivo
 
 ---
 
@@ -53,9 +55,9 @@ Próximamente...
 
 Tu base de datos (SQLite) se guarda automáticamente en:
 
-- **Linux**: `~/.local/share/gastos-personales/cache/gastos.db`
-- **Windows**: `%APPDATA%/gastos-personales/cache/gastos.db`
-- **macOS**: `~/Library/Application Support/gastos-personales/cache/gastos.db`
+- **Linux**: `~/.local/share/com.gastospersonales.app/gastos.db`
+- **Windows**: `%APPDATA%/com.gastospersonales.app/gastos.db`
+- **macOS**: `~/Library/Application Support/com.gastospersonales.app/gastos.db`
 
 > **Tus datos siempre permanecen en tu dispositivo. No usamos servidores.**
 
@@ -132,15 +134,15 @@ npm run tauri build
 
 #### 4. Ejecutable generado
 
-El instalador y el binario se generan en:
 ```
 src-tauri/target/release/bundle/
-├── appimage/    → GastosPersonales_0.1.0_amd64.AppImage  (portable, sin instalación)
-├── deb/         → gastos-personales_0.1.0_amd64.deb      (Debian/Ubuntu)
-└── rpm/         → gastos-personales-0.1.0-1.x86_64.rpm   (Fedora/RHEL)
+├── appimage/    → GastosPersonales_0.1.0_amd64.AppImage
+├── deb/         → gastos-personales_0.1.0_amd64.deb
+└── rpm/         → gastos-personales-0.1.0-1.x86_64.rpm
 ```
 
-El **AppImage** es la opción más portable: no requiere instalación, solo darle permisos de ejecución:
+El **AppImage** es la opción más portable: no requiere instalación.
+
 ```bash
 chmod +x GastosPersonales_*.AppImage
 ./GastosPersonales_*.AppImage
@@ -152,13 +154,9 @@ chmod +x GastosPersonales_*.AppImage
 
 #### 1. Dependencias del sistema
 
-- Instalar **Microsoft Visual C++ Build Tools** (si no tenés Visual Studio):
-  https://visualstudio.microsoft.com/visual-cpp-build-tools/
-
-  Durante la instalación, seleccionar: **"Desarrollo para escritorio con C++"**
-
-- Instalar **WebView2 Runtime** (ya incluido en Windows 11, en Windows 10 puede requerirse):
-  https://developer.microsoft.com/microsoft-edge/webview2/
+- **Microsoft Visual C++ Build Tools**: https://visualstudio.microsoft.com/visual-cpp-build-tools/
+  - Seleccionar: **"Desarrollo para escritorio con C++"**
+- **WebView2 Runtime** (incluido en Windows 11; puede requerirse en Windows 10): https://developer.microsoft.com/microsoft-edge/webview2/
 
 #### 2. Instalar dependencias Node
 
@@ -177,136 +175,41 @@ npm run tauri build
 
 ```
 src-tauri/target/release/bundle/
-├── msi/    → GastosPersonales_0.1.0_x64_en-US.msi    (instalador MSI)
-└── nsis/   → GastosPersonales_0.1.0_x64-setup.exe    (instalador NSIS)
-```
-
-También se genera el binario directo (sin instalador):
-```
-src-tauri/target/release/gastos-personales.exe
+├── msi/    → GastosPersonales_0.1.0_x64_en-US.msi
+└── nsis/   → GastosPersonales_0.1.0_x64-setup.exe
 ```
 
 ---
 
-### Compilar para Windows desde Linux (cross-compilation)
-
-#### Requisitos previos
-
-Esta es la forma más directa, pero requiere configurar el toolchain de Windows:
+### Modo desarrollo
 
 ```bash
-# 1. Instalar target de Windows
-rustup target add x86_64-pc-windows-gnu
-
-# 2. Instalar MinGW (cross-compiler de Windows)
-# Ubuntu / Debian
-sudo apt update
-sudo apt install -y mingw-w64
-
-# Fedora / RHEL
-sudo dnf install -y mingw64-gcc mingw64-gcc-c++ mingw64-binutils
-
-# Arch
-sudo pacman -S mingw-w64-gcc mingw-w64-binutils
+npm run tauri dev       # App completa con hot-reload
+npm run dev             # Solo UI en el navegador (sin Tauri)
+npx tsc --noEmit        # Type check
 ```
-
-#### Compilar
-
-```bash
-# Opción 1: Compilar para Windows (sin instalador, solo binario)
-npm run tauri build -- --target x86_64-pc-windows-gnu
-
-# Opción 2: Con MSVC (si tienes cargo-xwin instalado)
-rustup target add x86_64-pc-windows-msvc
-cargo install cargo-xwin
-npm run tauri build -- --target x86_64-pc-windows-msvc
-```
-
-#### Ubicación del ejecutable
-
-```
-src-tauri/target/x86_64-pc-windows-gnu/release/gastos-personales.exe
-```
-
-#### Alternativa: Visual Studio Build Tools (recomendado)
-
-Para mayor compatibilidad, instala **Visual Studio Build Tools 2022**:
-
-```bash
-# En Windows, descarga desde:
-# https://visualstudio.microsoft.com/visual-cpp-build-tools/
-
-# Una vez instalado en Windows, compilar es más directo:
-npm run tauri build
-```
-
-> **Nota:** La forma más confiable es compilar nativo directamente en Windows.
-> La cross-compilation desde Linux funciona pero puede tener limitaciones con ciertos plugins.
-
----
-
-### Modo desarrollo (sin compilar)
-
-Para ejecutar la app en modo dev con hot-reload:
-
-```bash
-npm run tauri dev
-```
-
-#### Script rápido para compilar Windows desde Linux
-
-Si estás en Linux y quieres compilar directamente para Windows:
-
-```bash
-./build-windows.sh
-```
-
-Este script:
-- Verifica que Rust esté instalado
-- Instala MinGW si es necesario (con permisos de sudo)
-- Configura el toolchain de Windows
-- Compila automáticamente
 
 ---
 
 ### Acceso a la base de datos (SQLite)
 
-Instalar `sqlite3` si no lo tienes:
-
 ```bash
 # Ubuntu / Debian
 sudo apt install sqlite3
 
-# macOS
-brew install sqlite
-
-# Windows (con chocolatey)
-choco install sqlite
+sqlite3 ~/.local/share/com.gastospersonales.app/gastos.db
 ```
 
-Conectarse a la base de datos:
-
-```bash
-sqlite3 ~/.config/com.gastospersonales.app/gastos.db
-```
-
-Comandos útiles una vez conectado:
+Comandos útiles:
 
 ```sql
--- Ver todas las transacciones
 SELECT * FROM transactions;
-
--- Ver configuración guardada (ej: Rule 50/30/20)
 SELECT key, value FROM settings;
-
--- Ver logs de errores
 SELECT * FROM error_logs ORDER BY created_at DESC LIMIT 20;
+SELECT * FROM recurring_payments WHERE is_active = 1;
 
--- Filtrar transacciones por fecha
-SELECT * FROM transactions WHERE date BETWEEN '2026-01-01' AND '2026-04-08';
-
--- Ver resumen de gastos por categoría
-SELECT category, SUM(amount) as total FROM transactions 
+-- Resumen de gastos por categoría
+SELECT category, SUM(amount) as total FROM transactions
 WHERE type='expense' GROUP BY category ORDER BY total DESC;
 
 -- Exportar a CSV
@@ -316,7 +219,71 @@ SELECT * FROM transactions;
 .quit
 ```
 
-**Nota:** Cerciorarse de cerrar la app antes de acceder a la base de datos para evitar bloqueos de archivo.
+> Cerrar la app antes de acceder a la base de datos para evitar bloqueos de archivo.
+
+---
+
+## Arquitectura
+
+Esta es una **app de escritorio Tauri v2** (Rust backend + React/TypeScript frontend). La UI corre como web view; Rust expone capacidades nativas via plugins de Tauri.
+
+### Vistas
+
+| Vista | Descripción |
+|-------|-------------|
+| Inicio (dashboard) | Resumen mensual con widgets colapsables |
+| Movimientos | Lista de transacciones con filtros |
+| Análisis con IA | Integración con Claude para análisis financiero |
+| Categorías | Gestión de categorías e íconos |
+| Metas | Regla de presupuesto (50/30/20 personalizable) |
+| Vivienda | Control de contrato y alquiler |
+| Ahorros | Metas de ahorro y depósitos |
+| Ajustes | Configuración general |
+| Base de datos | Visor de datos internos |
+
+### Capa de datos
+
+Toda la persistencia pasa por **SQLite** via `@tauri-apps/plugin-sql`. La base de datos se maneja completamente desde el frontend — no hay comandos Rust para acceso a datos. El punto de entrada es `src/lib/db.ts` con `getDb()` (singleton), inicialización de schema (`initializeDb`) y todos los helpers CRUD.
+
+**Tablas:**
+- `transactions` — ingresos/egresos con soporte para tipo de dólar, subtipo, recibo adjunto, pago recurrente asociado y meta de ahorro asociada
+- `settings` — store clave/valor para listas de categorías, mapping de regla de presupuesto, caché de cotizaciones, etc.
+- `error_logs` — errores de runtime registrados via `logError()`
+- `recurring_payments` — pagos/cobros periódicos con frecuencia configurable
+
+### Estado
+
+Sin librería de estado global. Cada feature tiene un hook dedicado en `src/hooks/` que maneja llamadas async a DB y `useState` local. Se componen en `App.tsx` y se pasan por props.
+
+**Hooks principales:**
+- `useTransactions` — lista filtrada de transacciones + resumen
+- `useCustomCategories` — categorías built-in + custom desde DB
+- `useBudgetRuleMapping` — carga/guarda el mapping de categorías a grupos de la regla de presupuesto
+- `useCategoryIcons` — íconos por categoría
+- `useFilters` — estado de filtros (fecha, tipo, categoría) — solo local, sin DB
+- `useDollarRate` — cotización dólar con caché y refresco automático
+- `useExchangeRates` — cotizaciones de otras divisas
+- `useRecurringPayments` — pagos recurrentes
+- `useSavings` — saldo de ahorros
+- `useSavingsGoals` — metas de ahorro
+- `useHousingContract` — datos de contrato de vivienda
+- `useCurrency` — formato de moneda según preferencia del usuario
+
+**Contextos:**
+- `CategoriesContext` — lista completa de categorías disponible globalmente
+- `CurrencyContext` — preferencia de moneda y función de formateo
+
+### Sistema de categorías
+
+Las categorías built-in de gastos están definidas en `src/types/index.ts` (`ALL_EXPENSE_CATEGORIES`, `EXPENSE_CATEGORIES`). Las custom se guardan en la tabla `settings` como JSON arrays bajo las claves `custom_expense_categories` / `custom_income_categories`. La lista completa se arma con `mergeCategoryLists()` en `src/types/index.ts`.
+
+### Regla de presupuesto
+
+El mapping de categorías → grupos (Necesidades / Deseos / Ahorro/Inversión) se guarda en `settings` bajo la clave `rule502030_category_groups`. La lógica vive en `src/lib/budgetRuleMapping.ts`. En cada carga, el mapping guardado se depura a categorías conocidas y las no cubiertas se agregan a "Deseos" (`loadOrMergeMapping`). La vista (`BudgetRuleView`) usa estado local `assign` y solo persiste en click explícito de "Guardar".
+
+### Lado Rust
+
+`src-tauri/src/` tiene comandos mínimos. Los plugins de Tauri usados son `plugin-sql`, `plugin-http` y `plugin-shell`.
 
 ---
 
@@ -324,14 +291,26 @@ SELECT * FROM transactions;
 
 ```
 gastos-personales/
-├── src/                    # Frontend React + TypeScript
-│   ├── components/         # Componentes UI
-│   ├── hooks/              # Custom hooks (transacciones, dólar, filtros)
+├── src/
+│   ├── components/
+│   │   ├── analysis/       # Análisis con IA (Claude)
+│   │   ├── budget-rule/    # Regla de presupuesto
+│   │   ├── categories/     # Gestión de categorías
+│   │   ├── dashboard/      # Widgets del dashboard
+│   │   ├── database/       # Visor de base de datos
+│   │   ├── housing/        # Vivienda y contratos
+│   │   ├── layout/         # Sidebar, Header
+│   │   ├── savings/        # Ahorros y metas
+│   │   ├── settings/       # Configuración
+│   │   ├── transactions/   # Lista, formulario, filtros, recibos
+│   │   └── ui/             # Componentes genéricos (Toast, DatePicker, etc.)
+│   ├── contexts/           # CategoriesContext, CurrencyContext
+│   ├── hooks/              # Custom hooks por feature
 │   ├── lib/                # DB, exportación, utilidades
-│   └── types/              # Tipos TypeScript
+│   └── types/              # Tipos TypeScript y categorías built-in
 ├── src-tauri/              # Backend Rust (Tauri)
-│   ├── src/                # Comandos Rust y lógica nativa
-│   └── tauri.conf.json     # Configuración de la app
+│   ├── src/
+│   └── tauri.conf.json
 └── package.json
 ```
 
@@ -343,8 +322,11 @@ gastos-personales/
 |------|-----------|
 | Desktop runtime | Tauri 2.x |
 | Frontend | React 18 + TypeScript + Vite |
-| Estilos | Tailwind CSS 3 |
+| Estilos | Tailwind CSS 3 (tema oscuro custom) |
 | Gráficos | Recharts |
-| Base de datos | SQLite (via tauri-plugin-sql) |
+| Base de datos | SQLite (via @tauri-apps/plugin-sql) |
 | Exportación | xlsx |
-| Cotización USD | dolarapi.com |
+| Cotizaciones | dolarapi.com |
+| IA | Claude API (Anthropic) |
+| Íconos | lucide-react |
+| Fechas | date-fns |
