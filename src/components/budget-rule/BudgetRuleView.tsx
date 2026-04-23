@@ -367,7 +367,7 @@ export const BudgetRuleView = React.memo((props: BudgetRuleViewProps) => {
       </div>
 
       {/* ── Mis Metas ── */}
-      <div>
+      <div >
         <div className="flex items-center justify-between mb-3">
           <div>
             <h3 className="text-sm font-semibold text-text-primary">Mis Metas</h3>

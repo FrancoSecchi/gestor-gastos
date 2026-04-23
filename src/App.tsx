@@ -202,7 +202,7 @@ function AppInner() {
     renameExpense: renameCustomExpenseCategory,
     renameIncome: renameCustomIncomeCategory,
   } = useCategoriesContext();
-  const { contract: housingContract, loading: housingLoading, save: saveHousingContract, remove: removeHousingContract } = useHousingContract();
+  const { contract: housingContract, loading: housingLoading, hasRentalContract, setHasRental, save: saveHousingContract, remove: removeHousingContract } = useHousingContract();
   const { recurringPayments, refresh: refreshRecurring, toggleRecurring, removeRecurring } = useRecurringPayments();
 
   // Previous period transactions for InsightsWidget
@@ -835,6 +835,8 @@ function AppInner() {
                   <HousingView
                     contract={housingContract}
                     loading={housingLoading}
+                    hasRentalContract={hasRentalContract}
+                    onSetHasRental={setHasRental}
                     onSave={saveHousingContract}
                     onDelete={removeHousingContract}
                   />

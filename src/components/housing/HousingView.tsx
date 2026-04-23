@@ -37,6 +37,8 @@ import { formatARS } from '../../lib/export';
 interface HousingViewProps {
   contract: HousingContract | null;
   loading: boolean;
+  hasRentalContract: boolean;
+  onSetHasRental: (value: boolean) => Promise<void>;
   onSave: (c: HousingContract) => Promise<void>;
   onDelete: () => Promise<void>;
 }
@@ -456,7 +458,7 @@ type EstimateResult =
   | { kind: 'adjusted'; amount: number; pct: number }
   | { kind: 'fallback'; amount: number; reason: string };
 
-export const HousingView: React.FC<HousingViewProps> = ({ contract, loading, onSave, onDelete }) => {
+export const HousingView: React.FC<HousingViewProps> = ({ contract, loading, hasRentalContract, onSetHasRental, onSave, onDelete }) => {
   const [editing, setEditing] = useState(false);
   const [showAdjustForm, setShowAdjustForm] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -645,6 +647,33 @@ export const HousingView: React.FC<HousingViewProps> = ({ contract, loading, onS
     await onSave(updated);
   };
 
+  const rentalToggle = (
+    <div className="flex items-center justify-between py-3 px-4 bg-bg-card border border-border-color rounded-xl">
+      <div>
+        <p className="text-sm font-medium text-text-primary">Tengo contrato de alquiler</p>
+        <p className="text-xs text-text-secondary mt-0.5">Activá para llevar el seguimiento de tu alquiler</p>
+      </div>
+      <button
+        onClick={() => onSetHasRental(!hasRentalContract)}
+        role="switch"
+        aria-checked={hasRentalContract}
+        style={{ width: 44, height: 24, minWidth: 44 }}
+        className={`relative shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${
+          hasRentalContract ? 'bg-accent-blue' : 'bg-border-color'
+        }`}
+      >
+        <span
+          style={{
+            width: 18,
+            height: 18,
+            transform: hasRentalContract ? 'translateX(20px)' : 'translateX(1px)',
+          }}
+          className="pointer-events-none absolute top-0.5 left-0 inline-block rounded-full bg-white shadow-sm transition-transform duration-200"
+        />
+      </button>
+    </div>
+  );
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-48 text-text-secondary">
@@ -653,16 +682,30 @@ export const HousingView: React.FC<HousingViewProps> = ({ contract, loading, onS
     );
   }
 
+  // ── Sin contrato de alquiler ──────────────────────────────────────────
+  if (!hasRentalContract) {
+    return (
+      <div className="flex flex-col gap-4">
+        <div>
+          <h2 className="text-lg font-semibold text-text-primary">Vivienda</h2>
+          <p className="text-sm text-text-secondary mt-0.5">Gestión de tu alquiler</p>
+        </div>
+        {rentalToggle}
+      </div>
+    );
+  }
+
   // ── Estado vacío: setup ───────────────────────────────────────────────
   if (!contract || editing) {
     return (
-      <div className="">
-        <div className="mb-5">
+      <div className="flex flex-col gap-4">
+        <div>
           <h2 className="text-lg font-semibold text-text-primary">Vivienda</h2>
           <p className="text-sm text-text-secondary mt-1">
             {contract ? 'Editá los datos de tu contrato.' : 'Configurá tu contrato de alquiler para calcular los ajustes automáticamente.'}
           </p>
         </div>
+        {rentalToggle}
         <div className="bg-bg-card border border-border-color rounded-xl p-5">
           <div className="flex items-center gap-2 mb-4">
             <Home size={14} className="text-accent-blue" />
@@ -706,6 +749,8 @@ export const HousingView: React.FC<HousingViewProps> = ({ contract, loading, onS
           </button>
         </div>
       </div>
+
+      {rentalToggle}
 
       {message && (
         <div className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs border animate-fade-in ${
