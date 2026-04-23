@@ -213,7 +213,7 @@ export const Settings: React.FC<SettingsProps> = ({
         </p>
       </div>
 
-      <div className="bg-bg-card border border-border-color rounded-xl p-5">
+      {/* <div className="bg-bg-card border border-border-color rounded-xl p-5">
         <div className="flex items-center gap-3 mb-5">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-accent-blue/20 to-accent-green/20 flex items-center justify-center border border-accent-blue/20">
             <Key size={16} className="text-accent-blue" />
@@ -270,8 +270,7 @@ export const Settings: React.FC<SettingsProps> = ({
               </button>
             )}
           </div>
-
-          {/* How to get key */}
+          
           <div className="bg-bg-secondary rounded-xl p-4 border border-border-color/50">
             <div className="flex items-center justify-between mb-2">
               <p className="text-xs font-semibold text-text-primary">¿Cómo obtener tu API key?</p>
@@ -298,7 +297,7 @@ export const Settings: React.FC<SettingsProps> = ({
             </div>
           </div>
         </div>
-      </div>
+      </div> */}
 
       {/* About */}
       <div className="bg-bg-card border border-border-color rounded-xl p-5">
