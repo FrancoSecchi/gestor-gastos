@@ -123,13 +123,16 @@ export function getLastAmount(contract: HousingContract): number {
  * - ICL: indexValue = nuevo nivel del índice BCRA (ej: 3500.25)
  */
 export function calculateNewAmount(contract: HousingContract, indexValue: number): number {
-  const lastAmount = getLastAmount(contract);
   if (contract.indexType === 'IPC') {
+    // IPC: el indexValue es la variación acumulada compuesta del período desde el último ajuste.
+    // Se aplica sobre el monto del último ajuste (cada período es independiente).
+    const lastAmount = getLastAmount(contract);
     return Math.round(lastAmount * (1 + indexValue / 100));
   } else {
-    const lastICL = getLastICLValue(contract);
-    if (lastICL === 0) return lastAmount;
-    return Math.round(lastAmount * (indexValue / lastICL));
+    // ICL: Valor Nuevo = Valor inicial del contrato × (ICL actual / ICL al inicio del contrato).
+    // Usar el monto inicial evita acumular errores de redondeo en cada ajuste sucesivo.
+    if (contract.initialIndexValue === 0) return contract.initialAmount;
+    return Math.round(contract.initialAmount * (indexValue / contract.initialIndexValue));
   }
 }
 
