@@ -22,6 +22,7 @@ const Settings = lazy(() => import('./components/settings/Settings').then(m => (
 const CategoriesView = lazy(() => import('./components/categories/CategoriesView').then(m => ({ default: m.CategoriesView })));
 const BudgetRuleView = lazy(() => import('./components/budget-rule/BudgetRuleView').then(m => ({ default: m.BudgetRuleView })));
 const SavingsView = lazy(() => import('./components/savings/SavingsView').then(m => ({ default: m.SavingsView })));
+const TrendsView = lazy(() => import('./components/trends/TrendsView').then(m => ({ default: m.TrendsView })));
 import { CategoriesProvider } from './contexts/CategoriesContext';
 import { useCategoriesContext } from './hooks/useCategoriesContext';
 import { useTransactions } from './hooks/useTransactions';
@@ -49,6 +50,7 @@ import { ChevronDown } from 'lucide-react';
 const VIEW_TITLES: Record<ActiveView, string> = {
   dashboard: 'Inicio',
   transactions: 'Movimientos',
+  trends: 'Tendencias',
   analysis: 'Análisis con IA',
   categories: 'Categorías',
   budgetRule: 'Metas',
@@ -729,6 +731,14 @@ function AppInner() {
                   />
                 </Suspense>
               </div>
+            </div>
+          )}
+
+          {activeView === 'trends' && (
+            <div className="animate-fade-in">
+              <Suspense fallback={<div className="flex items-center justify-center h-48"><p className="text-text-secondary">Cargando tendencias...</p></div>}>
+                <TrendsView mapping={effectiveRule502030Mapping} />
+              </Suspense>
             </div>
           )}
 

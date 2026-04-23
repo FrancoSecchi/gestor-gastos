@@ -9,12 +9,13 @@ import {
   PieChart,
   Home,
   PiggyBank,
+  TrendingUp,
   ChevronLeft,
   ChevronRight,
   ChevronDown,
 } from 'lucide-react';
 
-export type ActiveView = 'dashboard' | 'transactions' | 'analysis' | 'categories' | 'budgetRule' | 'housing' | 'savings' | 'settings' | 'database';
+export type ActiveView = 'dashboard' | 'transactions' | 'trends' | 'analysis' | 'categories' | 'budgetRule' | 'housing' | 'savings' | 'settings' | 'database';
 
 interface SidebarProps {
   activeView: ActiveView;
@@ -42,6 +43,7 @@ const navGroups: NavGroup[] = [
     items: [
       { id: 'dashboard', label: 'Inicio', icon: LayoutDashboard },
       { id: 'transactions', label: 'Movimientos', icon: ArrowLeftRight },
+      { id: 'trends', label: 'Tendencias', icon: TrendingUp },
     ],
   },
   {
