@@ -11,6 +11,13 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ---
 
+## [0.2.0] - 2026-04-22
+
+### Added
+- Vista de Tendencias: evolución mes a mes de ingresos, gastos, balance, grupos presupuestarios y categorías (últimos 6 o 12 meses)
+
+---
+
 ## [0.1.0] - 2026-04-22
 
 ### Added
@@ -66,6 +73,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 - Soporte de locale argentino (formato de fechas y moneda)
 - CI/CD workflow inicial
 
-[Unreleased]: https://github.com/FrancoSecchi/gastos-personales/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/FrancoSecchi/gastos-personales/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/FrancoSecchi/gastos-personales/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/FrancoSecchi/gastos-personales/compare/v0.0.1...v0.1.0
 [0.0.1]: https://github.com/FrancoSecchi/gastos-personales/releases/tag/v0.0.1
