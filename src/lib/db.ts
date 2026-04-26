@@ -102,6 +102,54 @@ async function initializeDb(database: Database): Promise<void> {
   await database.execute(`CREATE INDEX IF NOT EXISTS idx_transactions_date_type ON transactions(date, type)`);
   await database.execute(`CREATE INDEX IF NOT EXISTS idx_recurring_is_active ON recurring_payments(is_active)`);
 
+  // Investment tables
+  await database.execute(`
+    CREATE TABLE IF NOT EXISTS investment_assets (
+      ticker TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    )
+  `);
+
+  await database.execute(`
+    CREATE TABLE IF NOT EXISTS investment_movements (
+      id TEXT PRIMARY KEY,
+      ticker TEXT NOT NULL,
+      type TEXT NOT NULL CHECK(type IN ('buy', 'sell')),
+      quantity REAL NOT NULL,
+      price_usd REAL NOT NULL,
+      date TEXT NOT NULL,
+      notes TEXT,
+      created_at TEXT NOT NULL
+    )
+  `);
+
+  await database.execute(`CREATE INDEX IF NOT EXISTS idx_inv_movements_ticker ON investment_movements(ticker)`);
+  await database.execute(`CREATE INDEX IF NOT EXISTS idx_inv_movements_date ON investment_movements(date)`);
+
+  // Seed default investment assets if empty
+  const assetCount = await database.select<{ n: number }[]>('SELECT COUNT(*) as n FROM investment_assets');
+  if ((assetCount[0]?.n ?? 0) === 0) {
+    const now = new Date().toISOString();
+    const defaultAssets: [string, string][] = [
+      ['SPY', 'S&P 500 ETF'],
+      ['QQQ', 'Nasdaq 100 ETF'],
+      ['AAPL', 'Apple'],
+      ['GOOGL', 'Alphabet (Google)'],
+      ['MSFT', 'Microsoft'],
+      ['AMZN', 'Amazon'],
+      ['MELI', 'MercadoLibre'],
+      ['TSLA', 'Tesla'],
+      ['NVDA', 'NVIDIA'],
+    ];
+    for (const [ticker, name] of defaultAssets) {
+      await database.execute(
+        'INSERT OR IGNORE INTO investment_assets (ticker, name, created_at) VALUES ($1, $2, $3)',
+        [ticker, name, now]
+      );
+    }
+  }
+
   // Check if initialized
   const result = await database.select<{ value: string }[]>(
     "SELECT value FROM settings WHERE key = 'initialized'"

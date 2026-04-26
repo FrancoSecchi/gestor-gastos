@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use tauri_plugin_sql::DbPool;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Transaction {

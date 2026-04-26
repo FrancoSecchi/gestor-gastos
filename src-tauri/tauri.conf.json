@@ -25,7 +25,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'; img-src 'self' asset: http://asset.localhost data: blob: file:; media-src 'self' data: blob: file:; frame-src 'self' data: blob: file:; font-src 'self' data:; style-src 'self' 'unsafe-inline' http://localhost:5173; script-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:5173; connect-src 'self' ipc: http://ipc.localhost ws://ipc.localhost http://localhost:5173 ws://localhost:5173 https://api.anthropic.com https://dolarapi.com https://api.argly.com.ar https://api.bcra.gob.ar;"
+      "csp": "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'; img-src 'self' asset: http://asset.localhost data: blob: file:; media-src 'self' data: blob: file:; frame-src 'self' data: blob: file:; font-src 'self' data:; style-src 'self' 'unsafe-inline' http://localhost:5173; script-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:5173; connect-src 'self' ipc: http://ipc.localhost ws://ipc.localhost http://localhost:5173 ws://localhost:5173 https://api.anthropic.com https://dolarapi.com https://api.argly.com.ar https://api.bcra.gob.ar https://query1.finance.yahoo.com https://query2.finance.yahoo.com;"
     }
   },
   "bundle": {

@@ -10,12 +10,13 @@ import {
   Home,
   PiggyBank,
   TrendingUp,
+  BarChart2,
   ChevronLeft,
   ChevronRight,
   ChevronDown,
 } from 'lucide-react';
 
-export type ActiveView = 'dashboard' | 'transactions' | 'trends' | 'analysis' | 'categories' | 'budgetRule' | 'housing' | 'savings' | 'settings' | 'database';
+export type ActiveView = 'dashboard' | 'transactions' | 'trends' | 'analysis' | 'categories' | 'budgetRule' | 'housing' | 'savings' | 'investments' | 'settings' | 'database';
 
 interface SidebarProps {
   activeView: ActiveView;
@@ -51,6 +52,7 @@ const navGroups: NavGroup[] = [
     label: 'Finanzas',
     items: [
       { id: 'savings', label: 'Ahorros', icon: PiggyBank },
+      { id: 'investments', label: 'Inversiones', icon: BarChart2 },
       { id: 'budgetRule', label: 'Metas', icon: PieChart },
       { id: 'housing', label: 'Vivienda', icon: Home },
     ],

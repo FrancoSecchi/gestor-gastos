@@ -9,6 +9,19 @@
     "sql:allow-select",
     "sql:allow-load",
     "http:default",
+    "http:allow-fetch-send",
+    "http:allow-fetch-read-body",
+    "http:allow-fetch-cancel-body",
+    {
+      "identifier": "http:allow-fetch",
+      "allow": [
+        { "url": "https://query1.finance.yahoo.com/**" },
+        { "url": "https://query2.finance.yahoo.com/**" },
+        { "url": "https://dolarapi.com/**" },
+        { "url": "https://api.argly.com.ar/**" },
+        { "url": "https://api.bcra.gob.ar/**" }
+      ]
+    },
     "shell:allow-open",
     "dialog:allow-open"
   ]
