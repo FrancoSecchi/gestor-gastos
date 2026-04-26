@@ -1,4 +1,45 @@
 export type TransactionType = 'expense' | 'income';
+export type DebtDirection = 'i_owe' | 'they_owe';
+export type DebtStatus = 'active' | 'completed';
+
+export interface Debt {
+  id: string;
+  name: string;
+  description?: string | null;
+  amount: number;
+  currency: 'ARS' | 'USD';
+  direction: DebtDirection;
+  due_date?: string | null;
+  status: DebtStatus;
+  created_at: string;
+}
+
+export interface NewDebt {
+  name: string;
+  description?: string | null;
+  amount: number;
+  currency: 'ARS' | 'USD';
+  direction: DebtDirection;
+  due_date?: string | null;
+}
+
+export interface DebtPayment {
+  id: string;
+  debt_id: string;
+  transaction_id?: string | null;
+  amount: number;
+  date: string;
+  notes?: string | null;
+  created_at: string;
+}
+
+export interface NewDebtPayment {
+  debt_id: string;
+  transaction_id?: string | null;
+  amount: number;
+  date: string;
+  notes?: string | null;
+}
 export type TransactionSubtype = 'transfer_to_savings' | 'transfer_from_savings';
 export type RecurrenceFrequency = 'monthly' | 'bimonthly' | 'quarterly' | 'semiannual' | 'annual';
 

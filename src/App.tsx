@@ -24,6 +24,7 @@ const BudgetRuleView = lazy(() => import('./components/budget-rule/BudgetRuleVie
 const SavingsView = lazy(() => import('./components/savings/SavingsView').then(m => ({ default: m.SavingsView })));
 const TrendsView = lazy(() => import('./components/trends/TrendsView').then(m => ({ default: m.TrendsView })));
 const InvestmentsView = lazy(() => import('./components/investments/InvestmentsView').then(m => ({ default: m.InvestmentsView })));
+const DebtsView = lazy(() => import('./components/debts/DebtsView').then(m => ({ default: m.DebtsView })));
 import { CategoriesProvider } from './contexts/CategoriesContext';
 import { useCategoriesContext } from './hooks/useCategoriesContext';
 import { useTransactions } from './hooks/useTransactions';
@@ -58,6 +59,7 @@ const VIEW_TITLES: Record<ActiveView, string> = {
   housing: 'Vivienda',
   savings: 'Ahorros',
   investments: 'Inversiones',
+  debts: 'Deudas',
   settings: 'Ajustes',
   database: 'Base de datos',
 };
@@ -844,6 +846,14 @@ function AppInner() {
             <div className="animate-fade-in">
               <Suspense fallback={<div className="flex items-center justify-center h-48"><p className="text-text-secondary">Cargando inversiones...</p></div>}>
                 <InvestmentsView />
+              </Suspense>
+            </div>
+          )}
+
+          {activeView === 'debts' && (
+            <div className="animate-fade-in h-full">
+              <Suspense fallback={<div className="flex items-center justify-center h-48"><p className="text-text-secondary">Cargando deudas...</p></div>}>
+                <DebtsView />
               </Suspense>
             </div>
           )}

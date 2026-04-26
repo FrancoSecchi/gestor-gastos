@@ -1,5 +1,5 @@
 import Database from '@tauri-apps/plugin-sql';
-import { Transaction, NewTransaction, Summary, CategorySummary, RecurringPayment, NewRecurringPayment } from '../types';
+import { Transaction, NewTransaction, Summary, CategorySummary, RecurringPayment, NewRecurringPayment, Debt, NewDebt, DebtPayment, NewDebtPayment } from '../types';
 
 let db: Database | null = null;
 
@@ -126,6 +126,35 @@ async function initializeDb(database: Database): Promise<void> {
 
   await database.execute(`CREATE INDEX IF NOT EXISTS idx_inv_movements_ticker ON investment_movements(ticker)`);
   await database.execute(`CREATE INDEX IF NOT EXISTS idx_inv_movements_date ON investment_movements(date)`);
+
+  // Debts tables
+  await database.execute(`
+    CREATE TABLE IF NOT EXISTS debts (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT,
+      amount REAL NOT NULL,
+      currency TEXT NOT NULL DEFAULT 'ARS',
+      direction TEXT NOT NULL CHECK(direction IN ('i_owe', 'they_owe')),
+      due_date TEXT,
+      status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active', 'completed')),
+      created_at TEXT NOT NULL
+    )
+  `);
+
+  await database.execute(`
+    CREATE TABLE IF NOT EXISTS debt_payments (
+      id TEXT PRIMARY KEY,
+      debt_id TEXT NOT NULL,
+      transaction_id TEXT,
+      amount REAL NOT NULL,
+      date TEXT NOT NULL,
+      notes TEXT,
+      created_at TEXT NOT NULL
+    )
+  `);
+
+  await database.execute(`CREATE INDEX IF NOT EXISTS idx_debt_payments_debt_id ON debt_payments(debt_id)`);
 
   // Seed default investment assets if empty
   const assetCount = await database.select<{ n: number }[]>('SELECT COUNT(*) as n FROM investment_assets');
@@ -394,6 +423,65 @@ export async function setSetting(key: string, value: string): Promise<boolean> {
     [key, value]
   );
   return true;
+}
+
+// --- Debts ---
+
+export async function getDebts(): Promise<Debt[]> {
+  const database = await getDb();
+  return database.select<Debt[]>(`SELECT * FROM debts ORDER BY created_at DESC`);
+}
+
+export async function createDebt(debt: NewDebt): Promise<Debt> {
+  const database = await getDb();
+  const id = generateId();
+  const created_at = new Date().toISOString();
+  await database.execute(
+    `INSERT INTO debts (id, name, description, amount, currency, direction, due_date, status, created_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, 'active', $8)`,
+    [id, debt.name, debt.description ?? null, debt.amount, debt.currency, debt.direction, debt.due_date ?? null, created_at]
+  );
+  return { ...debt, id, status: 'active', created_at };
+}
+
+export async function updateDebt(debt: Debt): Promise<Debt> {
+  const database = await getDb();
+  await database.execute(
+    `UPDATE debts SET name=$1, description=$2, amount=$3, currency=$4, direction=$5, due_date=$6, status=$7 WHERE id=$8`,
+    [debt.name, debt.description ?? null, debt.amount, debt.currency, debt.direction, debt.due_date ?? null, debt.status, debt.id]
+  );
+  return debt;
+}
+
+export async function deleteDebt(id: string): Promise<void> {
+  const database = await getDb();
+  await database.execute(`DELETE FROM debt_payments WHERE debt_id=$1`, [id]);
+  await database.execute(`DELETE FROM debts WHERE id=$1`, [id]);
+}
+
+export async function getDebtPayments(debtId: string): Promise<DebtPayment[]> {
+  const database = await getDb();
+  return database.select<DebtPayment[]>(
+    `SELECT * FROM debt_payments WHERE debt_id=$1 ORDER BY date DESC, created_at DESC`,
+    [debtId]
+  );
+}
+
+export async function createDebtPayment(payment: NewDebtPayment): Promise<DebtPayment> {
+  const database = await getDb();
+  const id = generateId();
+  const created_at = new Date().toISOString();
+  await database.execute(
+    `INSERT INTO debt_payments (id, debt_id, transaction_id, amount, date, notes, created_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    [id, payment.debt_id, payment.transaction_id ?? null, payment.amount, payment.date, payment.notes ?? null, created_at]
+  );
+  return { ...payment, id, created_at };
+}
+
+export async function deleteDebtPayment(id: string): Promise<void> {
+  const database = await getDb();
+  await database.execute(`DELETE FROM debt_payments WHERE id=$1`, [id]);
 }
 
 const ALLOWED_TABLES = ['transactions', 'settings', 'error_logs', 'recurring_payments'] as const;
