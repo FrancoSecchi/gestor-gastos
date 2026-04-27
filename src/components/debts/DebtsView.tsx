@@ -10,9 +10,9 @@ import {
   AlertCircle,
   ArrowUpRight,
   ArrowDownLeft,
+  ArrowLeftRight,
   CreditCard,
   Calendar,
-  DollarSign,
   User,
 } from 'lucide-react';
 import { format, parseISO, isPast } from 'date-fns';
@@ -517,17 +517,33 @@ const DebtCard: React.FC<DebtCardProps> = ({
                 {debt.payments.map(payment => (
                   <div
                     key={payment.id}
-                    className="flex items-center gap-3 px-3 py-2 rounded-lg bg-bg-card border border-border-color/50"
+                    className={`flex items-center gap-3 px-3 py-2 rounded-lg border ${
+                      payment.transaction_id
+                        ? 'bg-accent-blue/5 border-accent-blue/20'
+                        : 'bg-bg-card border-border-color/50'
+                    }`}
                   >
-                    <div className="w-6 h-6 rounded-md bg-accent-green/15 flex items-center justify-center flex-shrink-0">
-                      <CreditCard size={11} className="text-accent-green" />
+                    <div className={`w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 ${
+                      payment.transaction_id ? 'bg-accent-blue/15' : 'bg-accent-green/15'
+                    }`}>
+                      {payment.transaction_id
+                        ? <ArrowLeftRight size={11} className="text-accent-blue" />
+                        : <CreditCard size={11} className="text-accent-green" />
+                      }
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-text-primary tabular-nums">
-                        {debt.currency === 'USD'
-                          ? `US$ ${payment.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
-                          : `$ ${payment.amount.toLocaleString('es-AR')}`}
-                      </p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-xs font-medium text-text-primary tabular-nums">
+                          {debt.currency === 'USD'
+                            ? `US$ ${payment.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
+                            : `$ ${payment.amount.toLocaleString('es-AR')}`}
+                        </p>
+                        {payment.transaction_id && (
+                          <span className="text-[9px] px-1 py-0.5 rounded bg-accent-blue/15 text-accent-blue font-medium">
+                            movimiento
+                          </span>
+                        )}
+                      </div>
                       {payment.notes && (
                         <p className="text-[10px] text-text-secondary truncate">{payment.notes}</p>
                       )}
@@ -535,12 +551,17 @@ const DebtCard: React.FC<DebtCardProps> = ({
                     <span className="text-[10px] text-text-secondary flex-shrink-0">
                       {format(parseISO(payment.date), 'd MMM', { locale: es })}
                     </span>
-                    <button
-                      onClick={() => onDeletePayment(payment.id)}
-                      className="w-5 h-5 flex items-center justify-center rounded text-text-secondary/40 hover:text-accent-red hover:bg-accent-red/10 transition-all flex-shrink-0"
-                    >
-                      <X size={10} />
-                    </button>
+                    {!payment.transaction_id && (
+                      <button
+                        onClick={() => onDeletePayment(payment.id)}
+                        className="w-5 h-5 flex items-center justify-center rounded text-text-secondary/40 hover:text-accent-red hover:bg-accent-red/10 transition-all flex-shrink-0"
+                      >
+                        <X size={10} />
+                      </button>
+                    )}
+                    {payment.transaction_id && (
+                      <div className="w-5 flex-shrink-0" />
+                    )}
                   </div>
                 ))}
               </div>

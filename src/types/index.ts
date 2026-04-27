@@ -126,6 +126,7 @@ export interface Transaction {
   created_at: string;
   recurring_id?: string | null;
   goal_id?: string | null;
+  debt_id?: string | null;
 }
 
 export interface NewTransaction {
@@ -141,6 +142,7 @@ export interface NewTransaction {
   date: string;
   recurring_id?: string | null;
   goal_id?: string | null;
+  debt_id?: string | null;
 }
 
 export interface CategorySummary {

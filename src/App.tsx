@@ -38,7 +38,8 @@ import { useFilters } from './hooks/useFilters';
 import { CurrencyProvider, useCurrencyFormat } from './contexts/CurrencyContext';
 import { Transaction, NewTransaction, RecurringPayment, RecurrenceFrequency, RECURRENCE_LABELS } from './types';
 import { exportToExcel, exportForClaude } from './lib/export';
-import { getReadableError, logError, getTransactions, getAllTransactions, createRecurringPayment, getRule502030Enabled, setRule502030Enabled } from './lib/db';
+import { getReadableError, logError, getTransactions, getAllTransactions, createRecurringPayment, getRule502030Enabled, setRule502030Enabled, createDebtPayment, deleteDebtPaymentByTransactionId } from './lib/db';
+import { useDebts } from './hooks/useDebts';
 import { calculateRule502030 } from './lib/budgetRule';
 import {
   getDefaultRule502030Mapping,
@@ -209,6 +210,7 @@ function AppInner() {
     renameIncome: renameCustomIncomeCategory,
   } = useCategoriesContext();
   const { contract: housingContract, loading: housingLoading, hasRentalContract, setHasRental, save: saveHousingContract, remove: removeHousingContract } = useHousingContract();
+  const { debts, refresh: refreshDebts } = useDebts();
   const { recurringPayments, refresh: refreshRecurring, toggleRecurring, removeRecurring } = useRecurringPayments();
 
   // Previous period transactions for InsightsWidget
@@ -397,7 +399,6 @@ function AppInner() {
       if (isEdit) {
         let txToEdit = tx as Transaction;
         if (recurringFrequency && !txToEdit.recurring_id) {
-          // Se activó recurrente al editar — crear el recurrente y linkear
           const recurring = await createRecurringPayment({
             type: txToEdit.type,
             amount: txToEdit.amount,
@@ -409,13 +410,24 @@ function AppInner() {
           txToEdit = { ...txToEdit, recurring_id: recurring.id };
         }
         await editTransaction(txToEdit);
+        // Sincronizar pago de deuda: eliminar el anterior y crear uno nuevo si corresponde
+        await deleteDebtPaymentByTransactionId(txToEdit.id);
+        if (txToEdit.debt_id) {
+          await createDebtPayment({
+            debt_id: txToEdit.debt_id,
+            transaction_id: txToEdit.id,
+            amount: txToEdit.amount,
+            date: txToEdit.date,
+            notes: txToEdit.description ?? null,
+          });
+          await refreshDebts();
+        }
         await refreshAllTransactions();
         toast.success('Transacción actualizada', 'Los cambios fueron guardados correctamente.');
       } else {
         let txToSave = tx as NewTransaction;
         let createdRecurring = false;
         if (recurringFrequency && !txToSave.recurring_id) {
-          // Create the recurring payment first, then link the transaction
           const recurring = await createRecurringPayment({
             type: txToSave.type,
             amount: txToSave.amount,
@@ -428,12 +440,22 @@ function AppInner() {
           createdRecurring = true;
           toast.success('Pago recurrente creado', `Se guardó como ${RECURRENCE_LABELS[recurringFrequency].toLowerCase()}.`);
         }
-        await addTransaction(txToSave);
+        const savedTx = await addTransaction(txToSave);
+        // Crear pago de deuda vinculado si se seleccionó una deuda
+        if (txToSave.debt_id && savedTx) {
+          await createDebtPayment({
+            debt_id: txToSave.debt_id,
+            transaction_id: savedTx.id,
+            amount: txToSave.amount,
+            date: txToSave.date,
+            notes: txToSave.description ?? null,
+          });
+          await refreshDebts();
+        }
         await refreshAllTransactions();
         if (!recurringFrequency) {
           toast.success('Transacción agregada', `Se registró ${tx.type === 'income' ? 'el ingreso' : 'el gasto'} exitosamente.`);
         }
-        // Si se creó un pago recurrente, hacer refresh en paralelo de todo lo necesario
         if (createdRecurring) {
           await Promise.all([
             refreshRecurring(),
@@ -444,11 +466,10 @@ function AppInner() {
           await refreshCurrentMonthTransactions();
         }
       }
-      // Si fue edición sin crear recurrente, solo refrescar mes actual
       if (isEdit) {
-      await refreshCurrentMonthTransactions();
-    }
-  } catch (err) {
+        await refreshCurrentMonthTransactions();
+      }
+    } catch (err) {
       await logError('App.handleSaveTransaction', err);
       toast.error('Error al guardar', getReadableError(err));
       throw err;
@@ -529,14 +550,16 @@ function AppInner() {
     try {
       const tx = transactions.find(t => t.id === id);
       if (tx?.receipt_path) await deleteReceiptFile(tx.receipt_path);
+      await deleteDebtPaymentByTransactionId(id);
       await removeTransaction(id);
       await refreshAllTransactions();
+      if (tx?.debt_id) await refreshDebts();
       toast.success('Transacción eliminada', 'La transacción fue eliminada correctamente.');
     } catch (err) {
       await logError('App.handleDelete', err);
       toast.error('Error al eliminar', getReadableError(err));
     }
-  }, [removeTransaction, refreshAllTransactions, transactions, toast]);
+  }, [removeTransaction, refreshAllTransactions, refreshDebts, transactions, toast]);
 
   const handleClearAllData = useCallback(async () => {
     try {
@@ -911,6 +934,7 @@ function AppInner() {
             housingContract={housingContract}
             dollarRates={rates}
             savingsGoals={savingsGoals}
+            debts={debts}
             onAddCustomCategory={handleAddCustomCategory}
             onSave={handleSaveTransaction}
             onClose={handleCloseForm}

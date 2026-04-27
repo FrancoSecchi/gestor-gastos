@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { X, Save, Plus, Eye, Calendar, Paperclip, FileX, RefreshCw } from 'lucide-react';
+import { X, Save, Plus, Eye, Calendar, Paperclip, FileX, RefreshCw, Landmark } from 'lucide-react';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import { copyReceiptFile, deleteReceiptFile } from '../../lib/receiptUtils';
 import { DatePicker } from '../ui/DatePicker';
-import { Transaction, NewTransaction, TransactionType, DollarRate, getCategoryColor, RecurrenceFrequency, RECURRENCE_LABELS, RecurringPayment, SavingsGoal } from '../../types';
+import { Transaction, NewTransaction, TransactionType, DollarRate, getCategoryColor, RecurrenceFrequency, RECURRENCE_LABELS, RecurringPayment, SavingsGoal, Debt } from '../../types';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useCurrencyFormat } from '../../contexts/CurrencyContext';
@@ -24,6 +24,7 @@ interface TransactionFormProps {
   housingContract?: HousingContract | null;
   dollarRates?: DollarRate[];
   savingsGoals: SavingsGoal[];
+  debts?: Debt[];
   onAddCustomCategory: (type: TransactionType, name: string) => Promise<void>;
   onSave: (tx: NewTransaction | Transaction, recurringFrequency?: RecurrenceFrequency) => Promise<void>;
   onClose: () => void;
@@ -40,6 +41,7 @@ const defaultForm: NewTransaction = {
   description: '',
   date: format(new Date(), 'yyyy-MM-dd'),
   goal_id: null,
+  debt_id: null,
 };
 
 function formatAmountDisplay(value: number): string {
@@ -58,6 +60,7 @@ export const TransactionForm = React.memo((props: TransactionFormProps) => {
     categoryIcons,
     housingContract,
     dollarRates = [],
+    debts = [],
     onAddCustomCategory,
     onSave,
     onClose,
@@ -79,6 +82,8 @@ export const TransactionForm = React.memo((props: TransactionFormProps) => {
   // Recurring state
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurringFrequency, setRecurringFrequency] = useState<RecurrenceFrequency>('monthly');
+  // Debt link state
+  const [isLinkedToDebt, setIsLinkedToDebt] = useState(false);
   const amountRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -100,7 +105,9 @@ export const TransactionForm = React.memo((props: TransactionFormProps) => {
         date: transaction.date,
         recurring_id: transaction.recurring_id ?? null,
         goal_id: transaction.goal_id ?? null,
+        debt_id: transaction.debt_id ?? null,
       });
+      setIsLinkedToDebt(!!transaction.debt_id);
       setAmountInput(transaction.amount > 0 ? String(transaction.amount) : '');
 
       // Determinar formMode si es una transacción de ahorro
@@ -138,11 +145,12 @@ export const TransactionForm = React.memo((props: TransactionFormProps) => {
       setFormMode(recurringTemplate.type === 'income' ? 'income' : 'expense');
       setIsRecurring(false);
     } else {
-      setForm({ ...defaultForm, type: initialType ?? 'expense', goal_id: null });
+      setForm({ ...defaultForm, type: initialType ?? 'expense', goal_id: null, debt_id: null });
       setAmountInput('');
       setFormMode(initialType ?? 'expense');
       setTransferMode('deposit');
       setIsRecurring(false);
+      setIsLinkedToDebt(false);
     }
     setPendingFilePath(null);
     setRemoveReceipt(false);
@@ -186,10 +194,11 @@ export const TransactionForm = React.memo((props: TransactionFormProps) => {
       // El subtype se asignará según transferMode
       const subtype = transferMode === 'deposit' ? 'transfer_to_savings' : 'transfer_from_savings';
       if (transferMode === 'deposit') {
-        setForm(prev => ({ ...prev, type: 'expense', subtype, category: 'Ahorro' }));
+        setForm(prev => ({ ...prev, type: 'expense', subtype, category: 'Ahorro', debt_id: null }));
       } else {
-        setForm(prev => ({ ...prev, type: 'income', subtype, category: 'Retiro de ahorro', goal_id: null }));
+        setForm(prev => ({ ...prev, type: 'income', subtype, category: 'Retiro de ahorro', goal_id: null, debt_id: null }));
       }
+      setIsLinkedToDebt(false);
     }
   };
 
@@ -703,6 +712,70 @@ export const TransactionForm = React.memo((props: TransactionFormProps) => {
                 <span>Registrando pago recurrente</span>
               </div>
             )}
+
+            {/* Deuda — solo en modo ingreso o gasto, no transferencia */}
+            {formMode !== 'transfer' && (() => {
+              const relevantDebts = debts.filter(d =>
+                d.status === 'active' &&
+                (formMode === 'expense' ? d.direction === 'i_owe' : d.direction === 'they_owe')
+              );
+              if (relevantDebts.length === 0) return null;
+              return (
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = !isLinkedToDebt;
+                      setIsLinkedToDebt(next);
+                      if (!next) setForm(prev => ({ ...prev, debt_id: null }));
+                    }}
+                    className={`
+                      w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl border transition-all duration-150 text-sm
+                      ${isLinkedToDebt
+                        ? 'bg-accent-orange/10 border-accent-orange/40 text-accent-orange'
+                        : 'bg-bg-secondary border-border-color text-text-secondary hover:border-text-secondary/50 hover:text-text-primary'
+                      }
+                    `}
+                  >
+                    <Landmark size={14} className={isLinkedToDebt ? 'text-accent-orange' : ''} />
+                    <span className="font-medium">Asociar a una deuda</span>
+                    <div className={`ml-auto w-8 h-4.5 rounded-full transition-all duration-200 flex items-center px-0.5 ${isLinkedToDebt ? 'bg-accent-orange' : 'bg-border-color'}`}>
+                      <div className={`w-3.5 h-3.5 rounded-full bg-white shadow transition-all duration-200 ${isLinkedToDebt ? 'translate-x-3.5' : 'translate-x-0'}`} />
+                    </div>
+                  </button>
+
+                  {isLinkedToDebt && (
+                    <div className="mt-2 p-3 bg-accent-orange/8 border border-accent-orange/20 rounded-xl animate-fade-in space-y-2">
+                      <label className="block text-xs font-medium text-text-secondary uppercase tracking-wider">
+                        {formMode === 'expense' ? 'Deuda que estás pagando' : 'Deuda que te están pagando'}
+                      </label>
+                      <select
+                        value={form.debt_id ?? ''}
+                        onChange={e => setForm(prev => ({ ...prev, debt_id: e.target.value || null }))}
+                        className={`${inputClass} text-sm`}
+                      >
+                        <option value="">Seleccionar deuda…</option>
+                        {relevantDebts.map(debt => (
+                          <option key={debt.id} value={debt.id}>
+                            {debt.name}
+                            {debt.description ? ` · ${debt.description}` : ''}
+                            {` · ${debt.currency === 'USD'
+                              ? `US$ ${debt.amount.toLocaleString('en-US', { maximumFractionDigits: 2 })}`
+                              : `$ ${debt.amount.toLocaleString('es-AR', { maximumFractionDigits: 0 })}`
+                            }`}
+                          </option>
+                        ))}
+                      </select>
+                      {form.debt_id && (
+                        <p className="text-[10px] text-text-secondary">
+                          Se registrará automáticamente un pago en la deuda seleccionada.
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Comprobante */}
             <div>
