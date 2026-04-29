@@ -210,7 +210,7 @@ export const BudgetRuleView = React.memo((props: BudgetRuleViewProps) => {
   }));
 
   return (
-    <div className="flex flex-col gap-5 max-w-3xl">
+    <div className="flex flex-col gap-5 w-full">
 
       {/* Header */}
       <div className="flex items-start justify-between">

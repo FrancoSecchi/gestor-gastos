@@ -172,7 +172,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onNavigate, transa
   return (
     <aside className={`
       flex-shrink-0 flex flex-col bg-bg-secondary border-r border-border-color
-      transition-all duration-200
+      transition-all duration-200 overflow-hidden
       ${collapsed ? 'w-[60px]' : 'w-52'}
     `}>
       {/* Logo + toggle */}
@@ -205,7 +205,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onNavigate, transa
       </div>
 
       {/* Navigation */}
-      <nav className={`flex-1 overflow-y-auto ${collapsed ? 'p-2 space-y-1' : 'p-2.5 space-y-0.5'}`}>
+      <nav className={`flex-1  overflow-x-hidden overflow-y-auto ${collapsed ? 'p-2 space-y-1' : 'p-2.5 space-y-0.5'}`}>
         {navGroups.map((group) => {
           const visibleItems = isARS ? group.items : group.items.filter(i => i.id !== 'housing');
           if (visibleItems.length === 0) return null;
@@ -247,16 +247,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onNavigate, transa
           );
         })}
       </nav>
-
-      {/* Footer */}
-      {!collapsed && (
-        <div className="px-4 py-3 border-t border-border-color">
-          <div className="flex items-center gap-2">
-            <div className="w-1.5 h-1.5 rounded-full bg-accent-green animate-pulse" />
-            <p className="text-xs text-text-secondary">v0.1.0 · SQLite local</p>
-          </div>
-        </div>
-      )}
     </aside>
   );
 };
