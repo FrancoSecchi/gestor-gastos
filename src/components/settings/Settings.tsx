@@ -7,12 +7,14 @@ interface SettingsProps {
   onClearAllData: () => Promise<void>;
   selectedCurrency: CurrencyInfo;
   onCurrencyChange: (code: CurrencyCode) => Promise<void>;
+  onOpenOnboarding: () => void;
 }
 
 export const Settings: React.FC<SettingsProps> = ({
   onClearAllData,
   selectedCurrency,
   onCurrencyChange,
+  onOpenOnboarding,
 }) => {
   const [apiKey, setApiKey] = useState('');
   const [showKey, setShowKey] = useState(false);
@@ -144,6 +146,18 @@ export const Settings: React.FC<SettingsProps> = ({
       <div>
         <h2 className="text-lg font-semibold text-text-primary">Configuración</h2>
         <p className="text-sm text-text-secondary mt-1">Personalizá la aplicación según tus preferencias.</p>
+      </div>
+
+      {/* Tutorial */}
+      <div className="bg-bg-card border border-border-color rounded-xl p-4">
+        <h3 className="text-sm font-semibold text-text-primary mb-1">Tutorial</h3>
+        <p className="text-xs text-text-secondary mb-3">Revisá los pasos de introducción a la app.</p>
+        <button
+          onClick={onOpenOnboarding}
+          className="flex items-center gap-2 px-3 py-2 text-sm text-text-secondary border border-border-color rounded-lg hover:text-text-primary hover:border-text-secondary transition-colors"
+        >
+          Ver tutorial
+        </button>
       </div>
 
       {/* Currency selection */}

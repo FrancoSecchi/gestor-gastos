@@ -949,6 +949,7 @@ function AppInner() {
                   onClearAllData={handleClearAllData}
                   selectedCurrency={selectedCurrency}
                   onCurrencyChange={setCurrency}
+                  onOpenOnboarding={() => setActiveView('onboarding')}
                 />
               </Suspense>
             </div>
