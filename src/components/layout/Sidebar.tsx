@@ -185,7 +185,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onNavigate, transa
         {!collapsed && (
           <div className="flex-1 min-w-0">
             <p className="text-sm font-bold text-text-primary leading-tight tracking-tight truncate">
-              Mis Gastos
+              Contás
             </p>
             <p className="text-[10px] text-text-secondary leading-tight">Finanzas personales</p>
           </div>
