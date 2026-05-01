@@ -1,6 +1,6 @@
-# Gastos Personales
+# Contás
 
-App de escritorio para gestionar gastos e ingresos personales con análisis avanzado: regla de presupuesto personalizable, cotizaciones de divisas en tiempo real, seguimiento de ahorros, gestión de vivienda, pagos recurrentes y análisis con IA.
+App de escritorio para gestionar gastos e ingresos personales: regla de presupuesto personalizable, cotizaciones de divisas en tiempo real, seguimiento de ahorros, gestión de vivienda y pagos recurrentes.
 
 ---
 
@@ -8,7 +8,6 @@ App de escritorio para gestionar gastos e ingresos personales con análisis avan
 
 - **Dashboard**: Resumen mensual con widgets colapsables (cotizaciones, metas, pagos recurrentes, transacciones recientes, insights)
 - **Regla de presupuesto**: Clasifica gastos en grupos personalizables (por defecto: Necesidades / Deseos / Ahorro)
-- **Análisis con IA**: Exporta tus datos a Claude para obtener insights financieros personalizados
 - **Cotizaciones**: Dólar (múltiples tipos) y otras divisas con actualización automática
 - **Ahorros**: Metas de ahorro con seguimiento de depósitos
 - **Vivienda**: Control de contrato de alquiler y vencimientos
@@ -33,11 +32,11 @@ App de escritorio para gestionar gastos e ingresos personales con análisis avan
 1. Descarga el archivo `.AppImage` desde las [Releases](https://github.com/tuusuario/gastos-personales/releases)
 2. Dale permisos de ejecución:
    ```bash
-   chmod +x GastosPersonales_*.AppImage
+   chmod +x Contas_*.AppImage
    ```
 3. Ejecuta:
    ```bash
-   ./GastosPersonales_*.AppImage
+   ./Contas_*.AppImage
    ```
 
 O instala desde tu repositorio de paquetes (Debian/Ubuntu):
@@ -136,7 +135,7 @@ npm run tauri build
 
 ```
 src-tauri/target/release/bundle/
-├── appimage/    → GastosPersonales_0.1.0_amd64.AppImage
+├── appimage/    → Contas_0.1.0_amd64.AppImage
 ├── deb/         → gastos-personales_0.1.0_amd64.deb
 └── rpm/         → gastos-personales-0.1.0-1.x86_64.rpm
 ```
@@ -144,8 +143,8 @@ src-tauri/target/release/bundle/
 El **AppImage** es la opción más portable: no requiere instalación.
 
 ```bash
-chmod +x GastosPersonales_*.AppImage
-./GastosPersonales_*.AppImage
+chmod +x Contas_*.AppImage
+./Contas_*.AppImage
 ```
 
 ---
@@ -175,8 +174,8 @@ npm run tauri build
 
 ```
 src-tauri/target/release/bundle/
-├── msi/    → GastosPersonales_0.1.0_x64_en-US.msi
-└── nsis/   → GastosPersonales_0.1.0_x64-setup.exe
+├── msi/    → Contas_0.1.0_x64_en-US.msi
+└── nsis/   → Contas_0.1.0_x64-setup.exe
 ```
 
 ---
@@ -233,7 +232,6 @@ Esta es una **app de escritorio Tauri v2** (Rust backend + React/TypeScript fron
 |-------|-------------|
 | Inicio (dashboard) | Resumen mensual con widgets colapsables |
 | Movimientos | Lista de transacciones con filtros |
-| Análisis con IA | Integración con Claude para análisis financiero |
 | Categorías | Gestión de categorías e íconos |
 | Metas | Regla de presupuesto (50/30/20 personalizable) |
 | Vivienda | Control de contrato y alquiler |
@@ -293,7 +291,6 @@ El mapping de categorías → grupos (Necesidades / Deseos / Ahorro/Inversión) 
 gastos-personales/
 ├── src/
 │   ├── components/
-│   │   ├── analysis/       # Análisis con IA (Claude)
 │   │   ├── budget-rule/    # Regla de presupuesto
 │   │   ├── categories/     # Gestión de categorías
 │   │   ├── dashboard/      # Widgets del dashboard
@@ -327,6 +324,5 @@ gastos-personales/
 | Base de datos | SQLite (via @tauri-apps/plugin-sql) |
 | Exportación | xlsx |
 | Cotizaciones | dolarapi.com |
-| IA | Claude API (Anthropic) |
 | Íconos | lucide-react |
 | Fechas | date-fns |

@@ -11,6 +11,23 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ---
 
+## [0.3.0] - 2026-04-30
+
+### Added
+- **Widget Patrimonio Neto** en el dashboard: muestra el balance consolidado de activos y pasivos con tooltip explicativo
+- **Sección de Inversiones**: registro y seguimiento de inversiones personales
+- **Sección de Deudas**: gestión de deudas con posibilidad de asociar movimientos existentes
+- **Onboarding**: wizard de bienvenida para nuevos usuarios en el primer arranque
+- Botón "Ver tutorial" en Ajustes para relanzar el onboarding en cualquier momento
+
+### Changed
+- La app ahora se llama **Contás**
+
+### Removed
+- Integración con IA (análisis via Claude API)
+
+---
+
 ## [0.2.0] - 2026-04-22
 
 ### Added
@@ -73,7 +90,8 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 - Soporte de locale argentino (formato de fechas y moneda)
 - CI/CD workflow inicial
 
-[Unreleased]: https://github.com/FrancoSecchi/gastos-personales/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/FrancoSecchi/gastos-personales/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/FrancoSecchi/gastos-personales/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/FrancoSecchi/gastos-personales/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/FrancoSecchi/gastos-personales/compare/v0.0.1...v0.1.0
 [0.0.1]: https://github.com/FrancoSecchi/gastos-personales/releases/tag/v0.0.1

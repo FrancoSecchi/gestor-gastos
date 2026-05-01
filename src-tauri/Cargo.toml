@@ -1,7 +1,7 @@
 [package]
 name = "gastos-personales"
 version = "0.1.0"
-description = "App de gastos personales con análisis AI"
+description = "Contás — app de escritorio para gestionar gastos e ingresos personales"
 authors = []
 edition = "2021"
 
