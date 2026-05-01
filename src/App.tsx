@@ -173,9 +173,11 @@ function AppInner() {
   const [activeView, setActiveView] = useState<ActiveView>('dashboard');
 
   useEffect(() => {
-    getSetting('onboarding_completed').then(completed => {
-      if (!completed) setActiveView('onboarding');
-    });
+    getSetting('onboarding_completed')
+      .then(completed => {
+        if (!completed) setActiveView('onboarding');
+      })
+      .catch(err => logError('App.onboardingCheck', err));
   }, []);
 
   const [showForm, setShowForm] = useState(false);
@@ -617,7 +619,11 @@ function AppInner() {
   }, [transactions, summary, dateRange, toast, effectiveRule502030Mapping]);
 
   const handleOnboardingComplete = useCallback(async (openForm?: boolean) => {
-    await setSetting('onboarding_completed', 'true');
+    try {
+      await setSetting('onboarding_completed', 'true');
+    } catch (err) {
+      await logError('App.handleOnboardingComplete', err);
+    }
     setActiveView('dashboard');
     if (openForm) setShowForm(true);
   }, []);
