@@ -7,6 +7,7 @@ import { BudgetTabsWidget } from './components/dashboard/BudgetTabsWidget';
 import { DollarRate } from './components/dashboard/DollarRate';
 import { ExchangeRateCard } from './components/dashboard/ExchangeRateCard';
 import { RecurringPaymentsWidget } from './components/dashboard/RecurringPaymentsWidget';
+import { NetWorthWidget } from './components/dashboard/NetWorthWidget';
 import { InsightsWidget } from './components/dashboard/InsightsWidget';
 import { RecentTransactions } from './components/dashboard/RecentTransactions';
 import { TransactionFilters } from './components/transactions/TransactionFilters';
@@ -679,6 +680,10 @@ function AppInner() {
                   />
                 </div>
                 <div className="col-span-5 flex flex-col gap-4">
+                  <NetWorthWidget
+                    totalSavings={totalSavings}
+                    debts={debts}
+                  />
                   <BudgetTabsWidget
                     transactions={transactions}
                     totalIncome={summary?.total_income ?? 0}
