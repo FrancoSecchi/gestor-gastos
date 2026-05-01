@@ -4,6 +4,7 @@ import { DebtWithPayments } from '../../hooks/useDebts';
 import { useCurrencyFormat } from '../../contexts/CurrencyContext';
 import { getInvestmentMovements, calculatePositions } from '../../lib/investments';
 import { logError } from '../../lib/db';
+import { InfoTooltip } from '../ui/InfoTooltip';
 
 interface NetWorthWidgetProps {
   totalSavings: number;
@@ -47,6 +48,18 @@ export const NetWorthWidget: React.FC<NetWorthWidgetProps> = ({ totalSavings, de
         <div className="flex items-center gap-2 mb-3">
           <Wallet size={15} className="text-text-secondary" />
           <h3 className="text-sm font-semibold text-text-primary">Patrimonio Neto</h3>
+          <InfoTooltip
+            title="¿Cómo se calcula?"
+            content={
+              <div className="flex flex-col gap-2">
+                <p><strong className="text-text-primary">Total ARS</strong> = Ahorros − Deudas en ARS</p>
+                <p><strong className="text-text-primary">Ahorros:</strong> suma neta de todos los depósitos a ahorros menos retiros, más saldo inicial.</p>
+                <p><strong className="text-text-primary">Deudas:</strong> solo las deudas en ARS que vos debés. Las deudas en USD se muestran aparte.</p>
+                <p><strong className="text-text-primary">Inversiones:</strong> costo base invertido en USD. No se suman al total en ARS por falta de tipo de cambio en el widget.</p>
+                <p className="text-text-secondary/70">El dinero no asignado a metas de ahorro no se cuenta para evitar doble conteo.</p>
+              </div>
+            }
+          />
         </div>
 
         {/* Total ARS */}
