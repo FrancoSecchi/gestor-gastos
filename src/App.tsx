@@ -39,7 +39,8 @@ import { useFilters } from './hooks/useFilters';
 import { CurrencyProvider, useCurrencyFormat } from './contexts/CurrencyContext';
 import { Transaction, NewTransaction, RecurringPayment, RecurrenceFrequency, RECURRENCE_LABELS } from './types';
 import { exportToExcel, exportForClaude } from './lib/export';
-import { getReadableError, logError, getTransactions, getAllTransactions, createRecurringPayment, getRule502030Enabled, setRule502030Enabled, createDebtPayment, deleteDebtPaymentByTransactionId } from './lib/db';
+import { getReadableError, logError, getTransactions, getAllTransactions, createRecurringPayment, getRule502030Enabled, setRule502030Enabled, createDebtPayment, deleteDebtPaymentByTransactionId, getSetting, setSetting } from './lib/db';
+import { OnboardingView } from './components/onboarding/OnboardingView';
 import { useDebts } from './hooks/useDebts';
 import { calculateRule502030 } from './lib/budgetRule';
 import {
@@ -64,6 +65,7 @@ const VIEW_TITLES: Record<ActiveView, string> = {
   debts: 'Deudas',
   settings: 'Ajustes',
   database: 'Base de datos',
+  onboarding: 'Bienvenida',
 };
 
 // Collapsible card component for dashboard
@@ -169,6 +171,13 @@ const TRANSACTIONS_TOOLTIP = (
 
 function AppInner() {
   const [activeView, setActiveView] = useState<ActiveView>('dashboard');
+
+  useEffect(() => {
+    getSetting('onboarding_completed').then(completed => {
+      if (!completed) setActiveView('onboarding');
+    });
+  }, []);
+
   const [showForm, setShowForm] = useState(false);
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
   const [formInitialType, setFormInitialType] = useState<'income' | 'expense' | undefined>(undefined);
@@ -606,6 +615,13 @@ function AppInner() {
       toast.error('Error al exportar', 'No se pudo generar el archivo.');
     }
   }, [transactions, summary, dateRange, toast, effectiveRule502030Mapping]);
+
+  const handleOnboardingComplete = useCallback(async (openForm?: boolean) => {
+    await setSetting('onboarding_completed', 'true');
+    setActiveView('dashboard');
+    if (openForm) setShowForm(true);
+  }, []);
+
   return (
     <div className="flex h-full bg-bg-primary overflow-hidden">
       <Sidebar
@@ -629,6 +645,15 @@ function AppInner() {
         />
 
         <main className="flex-1 overflow-y-auto p-5">
+          {activeView === 'onboarding' && (
+            <div className="animate-fade-in h-full">
+              <OnboardingView
+                currency={selectedCurrency}
+                setCurrency={setCurrency}
+                onComplete={handleOnboardingComplete}
+              />
+            </div>
+          )}
           {activeView === 'dashboard' && (
             <div className="flex flex-col gap-4 animate-fade-in">
               {/* Filters - Collapsible */}

@@ -17,7 +17,7 @@ import {
   Landmark,
 } from 'lucide-react';
 
-export type ActiveView = 'dashboard' | 'transactions' | 'trends' | 'analysis' | 'categories' | 'budgetRule' | 'housing' | 'savings' | 'investments' | 'debts' | 'settings' | 'database';
+export type ActiveView = 'dashboard' | 'transactions' | 'trends' | 'analysis' | 'categories' | 'budgetRule' | 'housing' | 'savings' | 'investments' | 'debts' | 'settings' | 'database' | 'onboarding';
 
 interface SidebarProps {
   activeView: ActiveView;
