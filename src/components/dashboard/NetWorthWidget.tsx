@@ -13,15 +13,16 @@ interface NetWorthWidgetProps {
 export const NetWorthWidget: React.FC<NetWorthWidgetProps> = ({ totalSavings, debts }) => {
   const { fmt } = useCurrencyFormat();
   const [totalInvestedUsd, setTotalInvestedUsd] = useState(0);
+  const [loadingInvestments, setLoadingInvestments] = useState(true);
 
   useEffect(() => {
     getInvestmentMovements()
       .then(movements => {
         const positions = calculatePositions(movements);
-        const total = positions.reduce((sum, p) => sum + p.investedUsd, 0);
-        setTotalInvestedUsd(total);
+        setTotalInvestedUsd(positions.reduce((sum, p) => sum + p.investedUsd, 0));
       })
-      .catch(err => logError('NetWorthWidget', err));
+      .catch(err => logError('NetWorthWidget', err))
+      .finally(() => setLoadingInvestments(false));
   }, []);
 
   const totalDebtsArs = debts
@@ -32,6 +33,7 @@ export const NetWorthWidget: React.FC<NetWorthWidgetProps> = ({ totalSavings, de
     .filter(d => d.direction === 'i_owe' && d.currency === 'USD')
     .reduce((sum, d) => sum + d.remaining_amount, 0);
 
+  // USD debts excluded from ARS net worth — no exchange rate available here
   const netWorthArs = totalSavings - totalDebtsArs;
   const isPositive = netWorthArs >= 0;
 
@@ -41,16 +43,22 @@ export const NetWorthWidget: React.FC<NetWorthWidgetProps> = ({ totalSavings, de
 
   return (
     <div className="bg-bg-card border border-border-color rounded-xl overflow-hidden">
-      <div className="px-4 pt-4 pb-4">
+      <div className="p-4">
         <div className="flex items-center gap-2 mb-3">
           <Wallet size={15} className="text-text-secondary" />
           <h3 className="text-sm font-semibold text-text-primary">Patrimonio Neto</h3>
         </div>
 
         {/* Total ARS */}
-        <p className={`text-2xl font-bold text-center mb-4 tabular-nums ${isPositive ? 'text-accent-green' : 'text-accent-red'}`}>
-          {fmt(netWorthArs)}
-        </p>
+        {loadingInvestments ? (
+          <div className="h-8 mb-4 flex items-center justify-center">
+            <div className="h-2 w-24 bg-bg-secondary rounded-full animate-pulse" />
+          </div>
+        ) : (
+          <p className={`text-2xl font-bold text-center mb-4 tabular-nums ${isPositive ? 'text-accent-green' : 'text-accent-red'}`}>
+            {fmt(netWorthArs)}
+          </p>
+        )}
 
         {/* Desglose */}
         <div className="flex flex-col gap-2.5">
