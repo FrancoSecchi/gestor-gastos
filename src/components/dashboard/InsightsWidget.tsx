@@ -9,6 +9,7 @@ interface InsightsWidgetProps {
   totalSavings: number;
   streakMonths: number;
   projectedBalance: number | null;
+  balance: number;
 }
 
 interface Insight {
@@ -24,6 +25,7 @@ export const InsightsWidget: React.FC<InsightsWidgetProps> = ({
   totalSavings,
   streakMonths,
   projectedBalance,
+  balance,
 }) => {
   const { fmt } = useCurrencyFormat();
   const insights = useMemo(() => {
@@ -121,6 +123,21 @@ export const InsightsWidget: React.FC<InsightsWidgetProps> = ({
             <span className={`font-semibold ${positive ? 'text-accent-green' : 'text-accent-orange'}`}>
               {positive ? '+' : '-'}{fmt(Math.abs(projectedBalance))}
             </span>
+          </>
+        ),
+      });
+    }
+
+    // Insight: presupuesto semanal (balance / 4)
+    if (balance > 0) {
+      const weekly = balance / 4;
+      result.push({
+        key: 'weekly',
+        icon: '📅',
+        text: (
+          <>
+            Tu presupuesto semanal es{' '}
+            <span className="font-semibold text-accent-green">{fmt(weekly)}</span>
           </>
         ),
       });

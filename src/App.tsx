@@ -699,6 +699,7 @@ function AppInner() {
                     totalSavings={totalSavings}
                     streakMonths={streakMonths}
                     projectedBalance={projectedBalance}
+                    balance={summary?.balance ?? 0}
                   />
                   <ExpenseChart
                     transactions={transactions}
