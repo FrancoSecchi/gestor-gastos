@@ -1,5 +1,7 @@
 import Database from '@tauri-apps/plugin-sql';
 import { Transaction, NewTransaction, Summary, CategorySummary, RecurringPayment, NewRecurringPayment, Debt, NewDebt, DebtPayment, NewDebtPayment } from '../types';
+import { isPresentationMode } from './presentationMode';
+import { filterMockTransactions, computeMockSummary, MOCK_RECURRING_PAYMENTS, MOCK_SAVINGS_GOALS, MOCK_DEBTS, MOCK_TRANSACTIONS } from './mockData';
 
 let db: Database | null = null;
 
@@ -248,6 +250,7 @@ export async function getErrorLogs(limit = 300): Promise<ErrorLogEntry[]> {
 }
 
 export async function getTransactions(startDate: string, endDate: string): Promise<Transaction[]> {
+  if (isPresentationMode()) return filterMockTransactions(startDate, endDate);
   const database = await getDb();
   const result = await database.select<Transaction[]>(
     `SELECT * FROM transactions WHERE date >= $1 AND date <= $2 ORDER BY date DESC, created_at DESC`,
@@ -257,6 +260,7 @@ export async function getTransactions(startDate: string, endDate: string): Promi
 }
 
 export async function getAllTransactions(): Promise<Transaction[]> {
+  if (isPresentationMode()) return MOCK_TRANSACTIONS;
   const database = await getDb();
   const result = await database.select<Transaction[]>(
     `SELECT * FROM transactions ORDER BY date DESC, created_at DESC`
@@ -305,6 +309,7 @@ export async function createRecurringPayment(rp: NewRecurringPayment): Promise<R
 }
 
 export async function getRecurringPayments(): Promise<RecurringPayment[]> {
+  if (isPresentationMode()) return MOCK_RECURRING_PAYMENTS;
   const database = await getDb();
   return database.select<RecurringPayment[]>(
     `SELECT * FROM recurring_payments ORDER BY created_at DESC`
@@ -362,6 +367,7 @@ export async function clearAllData(): Promise<void> {
 }
 
 export async function getSummary(startDate: string, endDate: string): Promise<Summary> {
+  if (isPresentationMode()) return computeMockSummary(startDate, endDate);
   const database = await getDb();
 
   const [incomeResult, expenseResult, categoryResult] = await Promise.all([
@@ -405,6 +411,7 @@ export async function setRule502030Enabled(enabled: boolean): Promise<boolean> {
 }
 
 export async function getSavingsGoals(): Promise<string | null> {
+  if (isPresentationMode()) return JSON.stringify(MOCK_SAVINGS_GOALS);
   return getSetting('savings_goals');
 }
 
@@ -433,6 +440,7 @@ export async function setSetting(key: string, value: string): Promise<boolean> {
 // --- Debts ---
 
 export async function getDebts(): Promise<Debt[]> {
+  if (isPresentationMode()) return MOCK_DEBTS;
   const database = await getDb();
   return database.select<Debt[]>(`SELECT * FROM debts ORDER BY created_at DESC`);
 }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Save, Eye, EyeOff, Key, Trash2, AlertCircle, CheckCircle, ExternalLink, Shield, Database, Cpu, Percent, Coins } from 'lucide-react';
 import { getRule502030Enabled, setRule502030Enabled, getSetting, setSetting, getReadableError, logError, getErrorLogs } from '../../lib/db';
+import { isPresentationMode, setPresentationMode } from '../../lib/presentationMode';
 import { CurrencyCode, CurrencyInfo, SUPPORTED_CURRENCIES } from '../../types';
 
 interface SettingsProps {
@@ -23,6 +24,7 @@ export const Settings: React.FC<SettingsProps> = ({
   const [hasKey, setHasKey] = useState(false);
   const [ruleEnabled, setRuleEnabled] = useState(true);
   const [savingRule, setSavingRule] = useState(false);
+  const [demoMode, setDemoMode] = useState(() => isPresentationMode());
 
   useEffect(() => {
     getSetting('claude_api_key').then(key => {
@@ -104,6 +106,13 @@ export const Settings: React.FC<SettingsProps> = ({
     } finally {
       setSavingRule(false);
     }
+  };
+
+  const handleToggleDemoMode = () => {
+    const next = !demoMode;
+    setPresentationMode(next);
+    setDemoMode(next);
+    window.location.reload();
   };
 
   const handleDownloadErrorLog = async () => {
@@ -339,6 +348,25 @@ export const Settings: React.FC<SettingsProps> = ({
         </div>
       </div>
 
+      {/* Modo presentación */}
+      <div className="bg-bg-card border border-border-color rounded-xl p-5">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-accent-yellow/20 to-accent-orange/20 flex items-center justify-center border border-accent-yellow/20">
+            <Cpu size={16} className="text-accent-yellow" />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-text-primary">Modo presentación</h3>
+            <p className="text-xs text-text-secondary">Reemplaza tus datos reales con datos de ejemplo para capturas o demos.</p>
+          </div>
+          <button
+            type="button"
+            onClick={handleToggleDemoMode}
+            className={`ml-auto rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${demoMode ? 'bg-accent-yellow text-white hover:bg-yellow-400' : 'bg-bg-secondary text-text-secondary hover:bg-bg-card'}`}
+          >
+            {demoMode ? 'Activo' : 'Inactivo'}
+          </button>
+        </div>
+      </div>
 
       {/* Danger zone */}
       <div className="bg-bg-card border border-accent-red/15 rounded-xl p-5">
